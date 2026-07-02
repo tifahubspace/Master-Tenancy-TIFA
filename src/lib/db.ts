@@ -7,6 +7,7 @@ import {
   query, 
   orderBy, 
   getDocs,
+  getDocsFromServer,
   deleteDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -221,7 +222,15 @@ export function restoreSampleSandboxData() {
 export async function seedFirestoreIfEmpty() {
   try {
     const q = query(collection(db, "properties"));
-    const snap = await getDocs(q);
+    
+    // Wrap getDocsFromServer in a 4-second timeout to prevent the app from hanging on initial boot
+    const fetchPromise = getDocsFromServer(q);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Koneksi ke Firestore timeout (4 detik)")), 4000)
+    );
+    
+    const snap = await Promise.race([fetchPromise, timeoutPromise]);
+    
     if (snap.empty) {
       console.log("Firestore is empty, seeding from local assets...");
       for (const p of sampleProperties) {
@@ -238,6 +247,7 @@ export async function seedFirestoreIfEmpty() {
       }
     }
   } catch (error) {
-    console.error("Firestore seeding failed:", error);
+    console.error("Firestore seeding failed or timed out:", error);
+    throw error; // Propagate the error so the UI can notify the user gracefully
   }
 }

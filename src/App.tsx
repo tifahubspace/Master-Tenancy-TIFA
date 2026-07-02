@@ -104,8 +104,12 @@ export default function App() {
       const seedAndFinish = async () => {
         try {
           await seedFirestoreIfEmpty();
-        } catch (err) {
+        } catch (err: any) {
           console.error(err);
+          showAlert(
+            "Koneksi Firestore Gagal",
+            "Gagal memuat database Firestore: " + (err.message || err) + ". Hal ini biasanya disebabkan oleh pembatasan iframe browser atau koneksi jaringan. Anda masih bisa masuk, atau silakan gunakan Sandbox Mode untuk performa offline yang lancar."
+          );
         } finally {
           setInitializing(false);
         }
@@ -126,8 +130,12 @@ export default function App() {
           // No user (e.g., anonymous is disabled and not logged in with Google)
           setUser(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Firebase Initialization Error:", err);
+        showAlert(
+          "Koneksi Cloud Gagal",
+          "Gagal menghubungkan ke Firestore: " + (err.message || err) + ". Silakan gunakan 'Local Demo Sandbox' jika koneksi Firebase terblokir."
+        );
       } finally {
         setInitializing(false);
       }
