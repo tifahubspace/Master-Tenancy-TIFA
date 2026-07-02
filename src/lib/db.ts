@@ -56,6 +56,16 @@ const listeners: { [key in CollectionName]: Listener<any>[] } = {
 
 // Initialize sandbox data from localStorage or seed fallback
 function initSandbox() {
+  // Let's force reset if old property keys exist to prevent mixing data
+  const samplePropKeys = localStorage.getItem("sandbox_properties");
+  if (samplePropKeys && samplePropKeys.includes("Oakridge Heights")) {
+    console.log("Detected older non-Indonesian sample data, resetting sandbox state...");
+    localStorage.removeItem("sandbox_properties");
+    localStorage.removeItem("sandbox_leases");
+    localStorage.removeItem("sandbox_payments");
+    localStorage.removeItem("sandbox_compliance");
+  }
+
   const getOrSeed = <T>(key: CollectionName, fallback: T[]): T[] => {
     const val = localStorage.getItem(`sandbox_${key}`);
     if (val) {

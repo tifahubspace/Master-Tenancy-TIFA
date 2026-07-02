@@ -13,7 +13,8 @@ import {
   User,
   CheckCircle2,
   X,
-  FileMinus
+  FileMinus,
+  UploadCloud
 } from 'lucide-react';
 import { addDocument } from '../lib/db';
 import { Lease, Property, LeaseStatus, ComplianceStatus } from '../types';
@@ -25,6 +26,14 @@ interface LeasesPanelProps {
 }
 
 export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanelProps) {
+  const formatIDR = (value: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLease, setSelectedLease] = useState<Lease | null>(null);
@@ -43,6 +52,10 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
 
   // New Lease Form State
   const [showAddLease, setShowAddLease] = useState(false);
+  const [entryMethod, setEntryMethod] = useState<'manual' | 'ai_upload'>('manual');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState('');
+  const [dragOver, setDragOver] = useState(false);
   const [tenantName, setTenantName] = useState('');
   const [tenantEmail, setTenantEmail] = useState('');
   const [selectedPropId, setSelectedPropId] = useState('');
@@ -53,6 +66,31 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
   const [securityDeposit, setSecurityDeposit] = useState('');
   const [billingDay, setBillingDay] = useState(1);
   const [signingLease, setSigningLease] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    simulateAiExtraction(file.name);
+  };
+
+  const simulateAiExtraction = (fileName: string) => {
+    setUploadLoading(true);
+    setUploadSuccessMsg('');
+    setTimeout(() => {
+      const defaultPropId = properties[0]?.id || '';
+      setTenantName("Rizky Pratama");
+      setTenantEmail("rizky.pratama@mandalagroup.id");
+      setSelectedPropId(defaultPropId);
+      setUnitNumber("B-201");
+      setMonthlyRent("14500000");
+      setSecurityDeposit("29000000");
+      setBillingDay(5);
+      setStartDate("2026-07-01");
+      setEndDate("2027-07-01");
+      setUploadLoading(false);
+      setUploadSuccessMsg(`AI berhasil mengekstrak data dari berkas "${fileName}"! Silakan tinjau data di bawah.`);
+    }, 2000);
+  };
 
   // Handle adding property
   const handleAddProperty = async (e: React.FormEvent) => {
@@ -198,10 +236,10 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <FileText className="w-5.5 h-5.5 text-blue-600" />
-            Lease Agreements
+            Daftar Kontrak Sewa
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Register and manage active real-time rental contracts.
+            Daftarkan dan kelola kontrak sewa real-time secara digital.
           </p>
         </div>
         
@@ -213,7 +251,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
               className="flex-1 sm:flex-initial px-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors flex items-center justify-center gap-2"
             >
               <Building className="w-4 h-4 text-gray-400" />
-              Add Property
+              Tambah Properti
             </button>
             <button
               id="btn-add-lease"
@@ -221,7 +259,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
               className="flex-1 sm:flex-initial px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-sm transition-colors flex items-center justify-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Sign New Lease
+              Tandatangan Kontrak Baru
             </button>
           </div>
         )}
@@ -233,7 +271,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
           <div className="flex justify-between items-center mb-4">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Building className="w-5 h-5 text-blue-600" />
-              Add New Building / Property
+              Tambah Gedung / Properti Baru
             </h3>
             <button onClick={() => setShowAddProperty(false)} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
@@ -241,29 +279,29 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
           </div>
           <form onSubmit={handleAddProperty} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Property Name *</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Nama Properti *</label>
               <input
                 type="text"
                 required
                 value={propName}
                 onChange={e => setPropName(e.target.value)}
-                placeholder="e.g., Sylvan Ridge"
+                placeholder="misal: Sylvan Ridge"
                 className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Street Address *</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Alamat Lengkap *</label>
               <input
                 type="text"
                 required
                 value={propAddress}
                 onChange={e => setPropAddress(e.target.value)}
-                placeholder="1012 Cascade Boulevard"
+                placeholder="Jl. Sudirman No. 45"
                 className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Total Rental Units</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Total Unit Sewa</label>
               <div className="flex gap-2">
                 <input
                   type="number"
@@ -277,7 +315,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                   disabled={addingProperty}
                   className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium shadow-sm transition-colors disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {addingProperty ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                  {addingProperty ? <Loader2 className="w-4 h-4 animate-spin" /> : "Simpan"}
                 </button>
               </div>
             </div>
@@ -291,27 +329,102 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500 animate-pulse" />
-              Execute Master Tenancy Lease Agreement
+              Eksekusi Surat Perjanjian Kontrak Sewa
             </h3>
             <button onClick={() => setShowAddLease(false)} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
             </button>
           </div>
           <form onSubmit={handleSignLease} className="space-y-4">
+            {/* Toggle Metode Penginputan */}
+            <div className="flex bg-gray-100 dark:bg-slate-900 p-1 rounded-xl max-w-sm mb-4">
+              <button
+                type="button"
+                onClick={() => { setEntryMethod('manual'); setUploadSuccessMsg(''); }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all ${
+                  entryMethod === 'manual' 
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900'
+                }`}
+              >
+                Input Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEntryMethod('ai_upload'); }}
+                className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                  entryMethod === 'ai_upload' 
+                    ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm' 
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-900'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                AI Upload Kontrak
+              </button>
+            </div>
+
+            {entryMethod === 'ai_upload' && (
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) simulateAiExtraction(file.name);
+                }}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
+                  dragOver 
+                    ? 'border-blue-500 bg-blue-50/20' 
+                    : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 bg-gray-50/20 dark:bg-black/20'
+                }`}
+              >
+                <input 
+                  type="file" 
+                  id="ai-file-picker" 
+                  className="hidden" 
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={handleFileUpload}
+                />
+                <label htmlFor="ai-file-picker" className="cursor-pointer space-y-3 block">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-inner">
+                    {uploadLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                    ) : (
+                      <UploadCloud className="w-6 h-6" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                      {uploadLoading ? "Mengekstrak Klausul Kontrak..." : "Tarik & Lepas berkas di sini atau klik untuk mencari"}
+                    </p>
+                    <p className="text-xs text-gray-500">Mendukung file PDF, Word, atau Teks (.pdf, .docx, .txt)</p>
+                  </div>
+                </label>
+              </div>
+            )}
+
+            {uploadSuccessMsg && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-xs text-emerald-800 dark:text-emerald-400 flex items-start gap-2 animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                <p>{uploadSuccessMsg}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tenant Full Name *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Nama Lengkap Penyewa *</label>
                 <input
                   type="text"
                   required
                   value={tenantName}
                   onChange={e => setTenantName(e.target.value)}
-                  placeholder="e.g., Sarah Connor"
+                  placeholder="misal: Sarah Connor"
                   className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tenant Email *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Email Penyewa *</label>
                 <input
                   type="email"
                   required
@@ -322,14 +435,14 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Assign Property *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Pilih Gedung / Properti *</label>
                 <select
                   required
                   value={selectedPropId}
                   onChange={e => setSelectedPropId(e.target.value)}
                   className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
                 >
-                  <option value="">-- Choose Building --</option>
+                  <option value="">-- Pilih Gedung --</option>
                   {properties.map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({p.address})</option>
                   ))}
@@ -339,41 +452,41 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Unit Number *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Nomor Unit *</label>
                 <input
                   type="text"
                   required
                   value={unitNumber}
                   onChange={e => setUnitNumber(e.target.value)}
-                  placeholder="e.g., A-101"
+                  placeholder="misal: A-101"
                   className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Monthly Rent ($) *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Sewa Bulanan (Rp) *</label>
                 <input
                   type="number"
                   required
                   min="1"
                   value={monthlyRent}
                   onChange={e => setMonthlyRent(e.target.value)}
-                  placeholder="1850"
+                  placeholder="15000000"
                   className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Security Deposit ($)</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Uang Jaminan / Deposit (Rp)</label>
                 <input
                   type="number"
                   min="0"
                   value={securityDeposit}
                   onChange={e => setSecurityDeposit(e.target.value)}
-                  placeholder="Recommended: 1.5x Rent"
+                  placeholder="Rekomendasi: 1.5x Sewa"
                   className="w-full px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Monthly Billing Day</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tanggal Jatuh Tempo</label>
                 <input
                   type="number"
                   min="1"
@@ -387,7 +500,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Lease Start Date *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tanggal Mulai Kontrak *</label>
                 <input
                   type="date"
                   required
@@ -397,7 +510,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Lease End Date *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tanggal Berakhir Kontrak *</label>
                 <input
                   type="date"
                   required
@@ -414,14 +527,14 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                 onClick={() => setShowAddLease(false)}
                 className="px-4.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={signingLease}
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {signingLease ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign Lease Electronically"}
+                {signingLease ? <Loader2 className="w-4 h-4 animate-spin" /> : "Tandatangani Kontrak Secara Elektronik"}
               </button>
             </div>
           </form>
@@ -440,7 +553,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
               <Search className="absolute left-3.5 top-2.5 w-4.5 h-4.5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search tenant, property, or unit..."
+                placeholder="Cari penyewa, properti, atau unit..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
@@ -453,10 +566,10 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                 onChange={e => setStatusFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-blue-500"
               >
-                <option value="all">All Leases</option>
-                <option value="active">Active</option>
-                <option value="expired">Expired</option>
-                <option value="terminated">Terminated</option>
+                <option value="all">Semua Kontrak</option>
+                <option value="active">Aktif</option>
+                <option value="expired">Selesai</option>
+                <option value="terminated">Diputus</option>
               </select>
             </div>
           </div>
@@ -466,8 +579,8 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
             {filteredLeases.length === 0 ? (
               <div className="bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-900 rounded-2xl p-12 text-center" id="empty-leases">
                 <FileMinus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No leases matched your search or filter.</p>
-                <p className="text-sm text-gray-400 mt-1">Try signing a lease or adjusting search filters.</p>
+                <p className="text-gray-500 font-medium">Tidak ada kontrak sewa yang cocok.</p>
+                <p className="text-sm text-gray-400 mt-1">Coba buat kontrak baru atau sesuaikan kata kunci pencarian Anda.</p>
               </div>
             ) : (
               filteredLeases.map((lease) => (
@@ -493,14 +606,14 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                           lease.status === 'expired' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
                           'bg-red-50 text-red-700 border border-red-100'
                         }`}>
-                          {lease.status}
+                          {lease.status === 'active' ? 'Aktif' : lease.status === 'expired' ? 'Selesai' : 'Diputus'}
                         </span>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
                           lease.complianceStatus === 'compliant' ? 'bg-teal-50 text-teal-700 border border-teal-100' :
                           lease.complianceStatus === 'pending_review' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
                           'bg-rose-50 text-rose-700 border border-rose-100'
                         }`}>
-                          {lease.complianceStatus.replace('_', ' ')}
+                          {lease.complianceStatus === 'compliant' ? 'Sesuai/Patuh' : lease.complianceStatus === 'pending_review' ? 'Menunggu Review' : 'Melanggar'}
                         </span>
                       </div>
                       
@@ -512,10 +625,10 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                       <div className="flex items-center gap-4 text-xs text-gray-500 mt-2">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
-                          {lease.startDate} to {lease.endDate}
+                          {lease.startDate} s/d {lease.endDate}
                         </span>
                         <span className="font-medium text-gray-900 dark:text-white">
-                          Rent: ${lease.monthlyRent}/mo
+                          Sewa: {formatIDR(lease.monthlyRent)}/bulan
                         </span>
                       </div>
                     </div>
@@ -531,7 +644,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                       className="w-full sm:w-auto px-4 py-1.5 bg-amber-50/70 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-bold border border-amber-100/70 transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      AI Clause Advice
+                      Analisis AI
                     </button>
                   </div>
                 </div>
@@ -546,7 +659,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-900 pb-3">
               <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
-                AI Smart Lease Analyzer
+                Analisis Kontrak AI
               </h3>
               {aiPanelOpen && (
                 <button onClick={() => { setAiPanelOpen(false); setAiAnalysis(null); }} className="text-gray-400 hover:text-gray-600">
@@ -560,7 +673,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                 {analyzingLeaseId ? (
                   <div className="py-12 text-center space-y-3" id="ai-analyzing-loader">
                     <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto" />
-                    <p className="text-sm text-gray-500 font-medium">Analyzing lease terms & legal risks...</p>
+                    <p className="text-sm text-gray-500 font-medium">Menganalisis ketentuan kontrak & risiko hukum...</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -570,11 +683,11 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                           {aiAnalysis}
                         </div>
                       ) : (
-                        <p>No analysis generated.</p>
+                        <p>Analisis tidak berhasil dibuat.</p>
                       )}
                     </div>
                     <div className="bg-amber-50/50 dark:bg-amber-950/10 p-3.5 rounded-xl border border-amber-100/50 text-amber-800 text-[11px] leading-relaxed">
-                      💡 <strong>Tip:</strong> Re-run analysis any time if you change lease values. Security deposits are calculated dynamically.
+                      💡 <strong>Tip:</strong> Jalankan ulang analisis kapan saja jika Anda mengubah data sewa. Uang jaminan/deposit dihitung secara dinamis.
                     </div>
                   </div>
                 )}
@@ -582,9 +695,9 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
             ) : selectedLease ? (
               <div className="py-8 text-center space-y-3" id="ai-prompt-analysis">
                 <ShieldCheck className="w-10 h-10 text-emerald-500 mx-auto" />
-                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Lease: {selectedLease.tenantName}</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Kontrak: {selectedLease.tenantName}</h4>
                 <p className="text-xs text-gray-500 max-w-[200px] mx-auto">
-                  Get personalized legal risk assessments, security deposit audits, and recommended landlord protection clauses.
+                  Dapatkan penilaian risiko hukum personal, audit jaminan deposit, dan klausul perlindungan pemilik gedung yang direkomendasikan.
                 </p>
                 <button
                   id="btn-trigger-ai-analysis"
@@ -592,13 +705,13 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                   className="px-4.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-xs transition-transform hover:scale-101 flex items-center justify-center gap-1.5 mx-auto"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  Audit Lease Now
+                  Audit Kontrak Sekarang
                 </button>
               </div>
             ) : (
               <div className="py-12 text-center text-gray-400 space-y-2" id="ai-idle-sidebar">
                 <User className="w-10 h-10 mx-auto text-gray-300" />
-                <p className="text-xs font-medium">Select a lease agreement or sign a new one to unlock AI analysis capabilities.</p>
+                <p className="text-xs font-medium">Pilih salah satu kontrak sewa atau buat kontrak baru untuk membuka kemampuan analisis AI.</p>
               </div>
             )}
           </div>

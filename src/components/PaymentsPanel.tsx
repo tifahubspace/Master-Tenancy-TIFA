@@ -30,6 +30,15 @@ import {
 } from 'recharts';
 import { Payment, Lease, PaymentStatus, PaymentMethod } from '../types';
 
+const formatIDR = (val: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(val);
+};
+
 interface PaymentsPanelProps {
   payments: Payment[];
   leases: Lease[];
@@ -55,14 +64,14 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLeaseId || !amount || !dueDate) {
-      alert("Please fill in all required fields.");
+      alert("Mohon isi semua bidang yang wajib diisi.");
       return;
     }
 
     setLoggingPayment(true);
     try {
       const lease = leases.find(l => l.id === selectedLeaseId);
-      if (!lease) throw new Error("Lease not found");
+      if (!lease) throw new Error("Kontrak sewa tidak ditemukan");
 
       const payId = "pay-" + Date.now().toString().slice(-4);
       const newPayment: Payment = {
@@ -155,10 +164,10 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-5.5 h-5.5 text-emerald-600 animate-pulse" />
-            Rent Payments & Ledger
+            Pembayaran Sewa & Buku Kas
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Real-time tracking of rental dues, monthly collections, and outstanding bills.
+            Pelacakan real-time dari tagihan sewa, penerimaan bulanan, dan sisa tunggakan.
           </p>
         </div>
         
@@ -169,7 +178,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
             className="w-full sm:w-auto px-4.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Log Payment Transaction
+            Catat Transaksi Pembayaran
           </button>
         )}
       </div>
@@ -180,7 +189,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-emerald-600" />
-              Log Rental Ledger Entry
+              Catat Entri Buku Kas Sewa
             </h3>
             <button onClick={() => setShowAddPayment(false)} className="text-gray-400 hover:text-gray-600">
               <X className="w-5 h-5" />
@@ -189,7 +198,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
           <form onSubmit={handleRecordPayment} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Select Active Lease *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Pilih Kontrak Sewa Aktif *</label>
                 <select
                   required
                   value={selectedLeaseId}
@@ -200,7 +209,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
                   }}
                   className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-emerald-500"
                 >
-                  <option value="">-- Choose Tenant / Lease --</option>
+                  <option value="">-- Pilih Penyewa / Kontrak --</option>
                   {leases.filter(l => l.status === 'active').map(l => (
                     <option key={l.id} value={l.id}>{l.tenantName} — {l.propertyName} ({l.unitNumber})</option>
                   ))}
@@ -208,25 +217,25 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Amount Paid ($) *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Jumlah Dibayarkan (Rp) *</label>
                 <input
                   type="number"
                   required
                   min="1"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}
-                  placeholder="1850"
+                  placeholder="15000000"
                   className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Transaction Notes</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Catatan Transaksi</label>
                 <input
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="Rent for March 2026"
+                  placeholder="Sewa untuk Maret 2026"
                   className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -234,37 +243,37 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Payment Status *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Status Pembayaran *</label>
                 <select
                   value={paymentStatus}
                   onChange={e => setPaymentStatus(e.target.value as PaymentStatus)}
                   className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-emerald-500"
                 >
-                  <option value="paid">Paid</option>
-                  <option value="partial">Partial</option>
-                  <option value="late">Late</option>
-                  <option value="overdue">Overdue</option>
+                  <option value="paid">Lunas (Paid)</option>
+                  <option value="partial">Sebagian (Partial)</option>
+                  <option value="late">Terlambat (Late)</option>
+                  <option value="overdue">Tunggakan (Overdue)</option>
                 </select>
               </div>
 
               {paymentStatus !== 'overdue' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Payment Method *</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Metode Pembayaran *</label>
                   <select
                     value={paymentMethod}
                     onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
                     className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-sm outline-none focus:border-emerald-500"
                   >
-                    <option value="bank_transfer">Bank Transfer</option>
-                    <option value="credit_card">Credit Card</option>
-                    <option value="cash">Cash</option>
-                    <option value="check">Check</option>
+                    <option value="bank_transfer">Transfer Bank</option>
+                    <option value="credit_card">Kartu Kredit</option>
+                    <option value="cash">Tunai (Cash)</option>
+                    <option value="check">Cek (Check)</option>
                   </select>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Rent Due Date *</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tanggal Jatuh Tempo *</label>
                 <input
                   type="date"
                   required
@@ -276,7 +285,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
 
               {paymentStatus !== 'overdue' && (
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Payment Date</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5 uppercase">Tanggal Pembayaran</label>
                   <input
                     type="date"
                     value={paymentDate}
@@ -293,14 +302,14 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
                 onClick={() => setShowAddPayment(false)}
                 className="px-4.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={loggingPayment}
                 className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2"
               >
-                {loggingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : "Post to Ledger"}
+                {loggingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : "Catat Pembayaran"}
               </button>
             </div>
           </form>
@@ -316,16 +325,16 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
             <div>
               <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5 text-sm">
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
-                Monthly Cash Flow
+                Arus Kas Bulanan
               </h4>
-              <p className="text-[11px] text-gray-500 mt-0.5">Rental collections vs remaining arrears.</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">Penerimaan sewa vs sisa tunggakan.</p>
             </div>
           </div>
           
           <div className="h-60" id="cashflow-chart">
             {chartData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-gray-400 text-xs">
-                Not enough payment history to plot.
+                Belum ada riwayat pembayaran yang cukup untuk ditampilkan.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -333,10 +342,10 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="#9ca3af" />
                   <YAxis tick={{ fontSize: 10 }} stroke="#9ca3af" />
-                  <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
-                  <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  <Bar dataKey="Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Outstanding" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Tooltip formatter={(value) => formatIDR(Number(value))} contentStyle={{ fontSize: '11px', borderRadius: '8px' }} />
+                  <Legend formatter={(value) => value === 'Collected' ? 'Diterima' : 'Tunggakan'} wrapperStyle={{ fontSize: '11px' }} />
+                  <Bar name="Diterima" dataKey="Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar name="Tunggakan" dataKey="Outstanding" fill="#ef4444" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -347,12 +356,12 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
         <div className="lg:col-span-1 bg-white dark:bg-gray-950 p-5 rounded-2xl border border-gray-100 dark:border-gray-900 shadow-xs">
           <h4 className="font-bold text-gray-900 dark:text-white text-sm flex items-center gap-1.5 mb-4">
             <TrendingDown className="w-4 h-4 text-blue-500" />
-            Revenue Distribution
+            Distribusi Pendapatan
           </h4>
           
           <div className="h-44 flex items-center justify-center" id="pie-breakdown-chart">
             {pieData.length === 0 ? (
-              <div className="text-gray-400 text-xs">No transaction records logged.</div>
+              <div className="text-gray-400 text-xs">Belum ada transaksi yang tercatat.</div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -369,7 +378,7 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `$${value}`} />
+                  <Tooltip formatter={(value) => formatIDR(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -377,12 +386,15 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
           
           {/* Legend */}
           <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-gray-100 dark:border-gray-900">
-            {pieData.map((d, index) => (
-              <div key={index} className="flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: d.color }}></span>
-                {d.name}: ${d.value}
-              </div>
-            ))}
+            {pieData.map((d, index) => {
+              const indonesianName = d.name === 'Paid' ? 'Lunas' : d.name === 'Late' ? 'Terlambat' : d.name === 'Partial' ? 'Sebagian' : d.name === 'Overdue' ? 'Tunggakan' : d.name;
+              return (
+                <div key={index} className="flex items-center gap-1.5 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: d.color }}></span>
+                  {indonesianName}: {formatIDR(d.value)}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -393,14 +405,14 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
         
         {/* Filter Controls */}
         <div className="p-4.5 border-b border-gray-100 dark:border-gray-900 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-          <h3 className="font-bold text-gray-900 dark:text-white text-sm">Historical Payment History</h3>
+          <h3 className="font-bold text-gray-900 dark:text-white text-sm">Riwayat Pembayaran Historis</h3>
           
           <div className="flex gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-60">
               <Search className="absolute left-3 top-2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search ledger entries..."
+                placeholder="Cari transaksi buku kas..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4.5 py-1.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-xs outline-none focus:border-emerald-500"
@@ -412,11 +424,11 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
               onChange={e => setStatusFilter(e.target.value)}
               className="px-2.5 py-1.5 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-xs outline-none focus:border-emerald-500"
             >
-              <option value="all">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="partial">Partial</option>
-              <option value="late">Late</option>
-              <option value="overdue">Overdue</option>
+              <option value="all">Semua Status</option>
+              <option value="paid">Lunas (Paid)</option>
+              <option value="partial">Sebagian (Partial)</option>
+              <option value="late">Terlambat (Late)</option>
+              <option value="overdue">Tunggakan (Overdue)</option>
             </select>
           </div>
         </div>
@@ -426,43 +438,47 @@ export default function PaymentsPanel({ payments, leases, isAdmin }: PaymentsPan
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/55 dark:bg-black border-b border-gray-100 dark:border-gray-900">
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Tenant</th>
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Property & Unit</th>
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Rent Due</th>
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Received</th>
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Method</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Penyewa</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Properti & Unit</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Jatuh Tempo</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Diterima</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Metode</th>
                 <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Status</th>
-                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Notes</th>
+                <th className="p-3.5 text-xs font-bold uppercase text-gray-500 tracking-wider">Catatan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-900 text-xs">
               {filteredPayments.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-gray-400 font-medium">
-                    No transactions matched your query.
+                    Tidak ada transaksi yang cocok dengan pencarian Anda.
                   </td>
                 </tr>
               ) : (
-                filteredPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
-                    <td className="p-3.5 font-bold text-gray-900 dark:text-white">{p.tenantName}</td>
-                    <td className="p-3.5 text-gray-700 dark:text-gray-300 font-medium">{p.propertyName} (Unit {p.unitNumber})</td>
-                    <td className="p-3.5 font-mono text-gray-500">{p.dueDate}</td>
-                    <td className="p-3.5 font-bold text-gray-900 dark:text-white">${p.amount}</td>
-                    <td className="p-3.5 font-mono text-gray-500 capitalize">{p.method?.replace('_', ' ') || "—"}</td>
-                    <td className="p-3.5">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        p.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                        p.status === 'late' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                        p.status === 'partial' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
-                        'bg-rose-50 text-rose-700 border border-rose-100 animate-pulse'
-                      }`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-gray-500 italic max-w-xs truncate">{p.notes || "—"}</td>
-                  </tr>
-                ))
+                filteredPayments.map((p) => {
+                  const translatedMethod = p.method === 'bank_transfer' ? 'Transfer Bank' : p.method === 'credit_card' ? 'Kartu Kredit' : p.method === 'cash' ? 'Tunai' : p.method === 'check' ? 'Cek' : p.method || '—';
+                  const translatedStatus = p.status === 'paid' ? 'Lunas' : p.status === 'late' ? 'Terlambat' : p.status === 'partial' ? 'Sebagian' : p.status === 'overdue' ? 'Tunggakan' : p.status;
+                  return (
+                    <tr key={p.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
+                      <td className="p-3.5 font-bold text-gray-900 dark:text-white">{p.tenantName}</td>
+                      <td className="p-3.5 text-gray-700 dark:text-gray-300 font-medium">{p.propertyName} (Unit {p.unitNumber})</td>
+                      <td className="p-3.5 font-mono text-gray-500">{p.dueDate}</td>
+                      <td className="p-3.5 font-bold text-gray-900 dark:text-white">{formatIDR(p.amount)}</td>
+                      <td className="p-3.5 font-mono text-gray-500 capitalize">{translatedMethod}</td>
+                      <td className="p-3.5">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          p.status === 'paid' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                          p.status === 'late' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                          p.status === 'partial' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                          'bg-rose-50 text-rose-700 border border-rose-100 animate-pulse'
+                        }`}>
+                          {translatedStatus}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-gray-500 italic max-w-xs truncate">{p.notes || "—"}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

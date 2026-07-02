@@ -17,9 +17,9 @@ interface DashboardStatsProps {
 export default function DashboardStats({ stats }: DashboardStatsProps) {
   // Format currency
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('id-ID', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'IDR',
       maximumFractionDigits: 0
     }).format(value);
   };
@@ -27,9 +27,9 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
   const cards = [
     {
       id: "stat-leases",
-      title: "Active Leases",
+      title: "Kontrak Aktif",
       value: `${stats.activeLeases} / ${stats.totalLeases}`,
-      description: "Occupancy and signed contracts",
+      description: "Okupansi & kontrak aktif saat ini",
       icon: FileText,
       bgColor: "bg-blue-50/70 dark:bg-blue-950/20",
       iconColor: "text-blue-600 dark:text-blue-400",
@@ -37,9 +37,9 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
     },
     {
       id: "stat-revenue",
-      title: "Collected Revenue",
+      title: "Pendapatan Diterima",
       value: formatCurrency(stats.totalRentCollected),
-      description: `Target: ${formatCurrency(stats.totalRentReceivable)} receivable`,
+      description: `Target: ${formatCurrency(stats.totalRentReceivable)} piutang`,
       icon: DollarSign,
       bgColor: "bg-emerald-50/70 dark:bg-emerald-950/20",
       iconColor: "text-emerald-600 dark:text-emerald-400",
@@ -47,9 +47,9 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
     },
     {
       id: "stat-outstanding",
-      title: "Outstanding Rent",
+      title: "Sewa Belum Dibayar",
       value: formatCurrency(stats.totalRentOutstanding),
-      description: `${Math.round((stats.totalRentCollected / (stats.totalRentReceivable || 1)) * 100)}% recovery rate`,
+      description: `${Math.round((stats.totalRentCollected / (stats.totalRentReceivable || 1)) * 100)}% tingkat penagihan`,
       icon: TrendingUp,
       bgColor: stats.totalRentOutstanding > 0 ? "bg-amber-50/70 dark:bg-amber-950/20" : "bg-teal-50/70 dark:bg-teal-950/20",
       iconColor: stats.totalRentOutstanding > 0 ? "text-amber-600 dark:text-amber-400" : "text-teal-600 dark:text-teal-400",
@@ -57,9 +57,9 @@ export default function DashboardStats({ stats }: DashboardStatsProps) {
     },
     {
       id: "stat-compliance",
-      title: "Compliance Rating",
+      title: "Tingkat Kepatuhan",
       value: `${stats.complianceRate}%`,
-      description: `${stats.activeComplianceCases} active incidents`,
+      description: `${stats.activeComplianceCases} insiden aktif`,
       icon: AlertTriangle,
       bgColor: stats.complianceRate < 80 ? "bg-red-50/70 dark:bg-red-950/20" : "bg-indigo-50/70 dark:bg-indigo-950/20",
       iconColor: stats.complianceRate < 80 ? "text-red-600 dark:text-red-400" : "text-indigo-600 dark:text-indigo-400",

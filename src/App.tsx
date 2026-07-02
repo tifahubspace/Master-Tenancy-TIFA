@@ -342,7 +342,7 @@ export default function App() {
 
         {/* Navigation list */}
         <nav className="mt-4 flex-1 overflow-y-auto space-y-1">
-          <div className="px-5 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Management</div>
+          <div className="px-5 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Manajemen</div>
           
           <button 
             id="tab-overview"
@@ -369,7 +369,7 @@ export default function App() {
           >
             <span className="mr-3 opacity-50 font-mono text-[10px]">02</span>
             <FileText className="w-3.5 h-3.5 mr-2" />
-            Leases ({leases.length})
+            Kontrak Sewa ({leases.length})
           </button>
 
           <button 
@@ -383,7 +383,7 @@ export default function App() {
           >
             <span className="mr-3 opacity-50 font-mono text-[10px]">03</span>
             <DollarSign className="w-3.5 h-3.5 mr-2" />
-            Rent Ledger ({payments.length})
+            Buku Kas Sewa ({payments.length})
           </button>
 
           <button 
@@ -397,10 +397,10 @@ export default function App() {
           >
             <span className="mr-3 opacity-50 font-mono text-[10px]">04</span>
             <AlertTriangle className="w-3.5 h-3.5 mr-2" />
-            Compliance Vault ({compliance.length})
+            Kepatuhan Tenant ({compliance.length})
           </button>
 
-          <div className="px-5 py-2 pt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">AI Systems</div>
+          <div className="px-5 py-2 pt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Sistem AI</div>
 
           <button 
             id="tab-ai-advisor"
@@ -413,19 +413,19 @@ export default function App() {
           >
             <span className="mr-3 opacity-50 font-mono text-[10px]">05</span>
             <Sparkles className="w-3.5 h-3.5 mr-2 text-amber-500" />
-            Strategic Briefing
+            Briefing Strategis AI
           </button>
 
-          <div className="px-5 py-2 pt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Portfolio</div>
+          <div className="px-5 py-2 pt-4 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Portofolio</div>
           <div className="px-5 py-1 text-[11px] text-slate-600 italic flex items-center">
-            <Building2 className="w-3 h-3 mr-2" /> {properties.length} Properties Syncing
+            <Building2 className="w-3 h-3 mr-2" /> {properties.length} Properti Sinkron
           </div>
         </nav>
 
         {/* Database Status and Switcher */}
         <div className="mx-4 my-3 p-3 bg-slate-950/40 rounded border border-slate-800/80 text-[11px] space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-slate-500 font-semibold tracking-tight text-[10px] font-mono">ENGINE STATE:</span>
+            <span className="text-slate-500 font-semibold tracking-tight text-[10px] font-mono">STATUS MESIN:</span>
             <span className={`px-1.5 py-0.2 rounded text-[9px] font-bold uppercase tracking-wider ${
               getDbMode() === "firebase" 
                 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
@@ -436,8 +436,8 @@ export default function App() {
           </div>
           <p className="text-[10px] text-slate-500 leading-normal">
             {getDbMode() === "firebase" 
-              ? "Running in live cloud synchronization mode." 
-              : "Running locally in an offline-first browser sandbox."}
+              ? "Berjalan dalam mode sinkronisasi cloud langsung." 
+              : "Berjalan lokal dalam sandbox browser offline-first."}
           </p>
           <button
             onClick={() => {
@@ -448,7 +448,7 @@ export default function App() {
             className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 py-1 px-2 rounded text-[10px] font-medium transition-colors flex items-center justify-center gap-1.5 border border-slate-700 uppercase tracking-wider"
           >
             <Database className="w-3 h-3 text-blue-400" />
-            <span>Switch to {getDbMode() === "firebase" ? "Sandbox" : "Firestore"}</span>
+            <span>Ganti ke {getDbMode() === "firebase" ? "Sandbox" : "Firestore"}</span>
           </button>
         </div>
 
@@ -456,14 +456,14 @@ export default function App() {
         <div className="p-4 border-t border-slate-800 bg-slate-950/30 flex-shrink-0 flex items-center justify-between">
           <div className="flex items-center space-x-3 overflow-hidden">
             <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white font-bold uppercase flex-shrink-0 shadow-inner">
-              {isAdmin ? "MV" : "SC"}
+              {isAdmin ? "AD" : "MG"}
             </div>
             <div className="overflow-hidden">
               <div className="text-xs font-semibold text-white truncate">
-                {user?.displayName || (isAdmin ? "Marcus Vane" : "Sarah Connor")}
+                {user?.displayName || (isAdmin ? "Admin Utama" : "Tim Manajemen")}
               </div>
               <div className="text-[10px] text-slate-500 truncate">
-                {isAdmin ? "Senior Administrator" : "Tenant Member"}
+                {isAdmin ? "Administrator" : "Management Role"}
               </div>
             </div>
           </div>
@@ -473,7 +473,7 @@ export default function App() {
                 signOut(auth);
                 window.location.reload();
               }}
-              title="Sign Out"
+              title="Keluar"
               className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-800 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -489,12 +489,12 @@ export default function App() {
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 flex items-center justify-between flex-shrink-0" id="app-header">
           <div className="flex items-center space-x-3">
             <div className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1 rounded text-[10px] font-mono tracking-wider font-bold">
-              {isAdmin ? "PRO-1004 // BUILDING MANAGER" : "UNIT-201 // TENANT PORTAL"}
+              {isAdmin ? "AKSES // ADMINISTRATOR" : "AKSES // MANAGEMENT ROLE"}
             </div>
             
             <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-400">
               <span className={`w-1.5 h-1.5 rounded-full ${getDbMode() === 'firebase' ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`}></span>
-              <span>{getDbMode() === 'firebase' ? 'Firestore Connected (Live Cloud)' : 'Sandbox Storage (Local-Only)'}</span>
+              <span>{getDbMode() === 'firebase' ? 'Terhubung Cloud (Live Firestore)' : 'Penyimpanan Sandbox (Lokal-Only)'}</span>
             </div>
           </div>
 
@@ -507,7 +507,7 @@ export default function App() {
               className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1 disabled:opacity-50"
             >
               {simulating ? <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" /> : <Zap className="w-3.5 h-3.5 text-amber-500" />}
-              <span>Simulate Rent/Violation</span>
+              <span>Simulasikan Kejadian Real-Time</span>
             </button>
 
             {/* Switch Role Button */}
@@ -520,7 +520,7 @@ export default function App() {
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Switch Role</span>
+              <span>Ganti Peran ({isAdmin ? "Management" : "Admin"})</span>
             </button>
           </div>
         </header>
@@ -533,7 +533,7 @@ export default function App() {
             <div className="bg-blue-50 dark:bg-slate-900 border border-blue-200 dark:border-slate-800 p-3.5 rounded flex items-start gap-2.5 shadow-xs" id="simulation-logs-banner">
               <Bell className="w-4 h-4 text-blue-600 mt-0.5 animate-bounce" />
               <div className="flex-1">
-                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Real-Time Event Audit Feed</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">Umpan Riwayat Kejadian Real-Time</p>
                 <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 font-mono space-y-0.5 leading-relaxed">
                   {simulationLogs.slice(0, 2).map((log, index) => (
                     <p key={index} className="flex items-center gap-1">
@@ -562,18 +562,18 @@ export default function App() {
                       <div>
                         <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-1.5">
                           <Users className="w-4 h-4 text-blue-500" />
-                          Occupancy Directory
+                          Direktori Hunian
                         </h3>
-                        <p className="text-[10px] text-slate-400">List of active tenancy leaseholders.</p>
+                        <p className="text-[10px] text-slate-400">Daftar kontrak sewa tenant yang sedang aktif.</p>
                       </div>
                       <span className="text-[10px] font-bold bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded uppercase">
-                        {leases.filter(l => l.status === 'active').length} Active
+                        {leases.filter(l => l.status === 'active').length} Aktif
                       </span>
                     </div>
 
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                       {leases.filter(l => l.status === 'active').length === 0 ? (
-                        <p className="text-slate-400 text-xs text-center py-12">No active tenants. Sign a lease agreement to start.</p>
+                        <p className="text-slate-400 text-xs text-center py-12">Tidak ada tenant aktif. Daftarkan kontrak sewa baru untuk memulai.</p>
                       ) : (
                         leases.filter(l => l.status === 'active').map(l => (
                           <div key={l.id} className="p-2.5 bg-slate-50 dark:bg-slate-950/40 rounded border border-slate-100 dark:border-slate-800/80 flex justify-between items-center gap-4 text-xs">
@@ -582,8 +582,10 @@ export default function App() {
                               <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px] font-medium">{l.propertyName} (Unit {l.unitNumber})</p>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-slate-950 dark:text-slate-200">${l.monthlyRent}/mo</p>
-                              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Billed: Day {l.billingDay}</p>
+                              <p className="font-bold text-slate-950 dark:text-slate-200">
+                                {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(l.monthlyRent)}/bln
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5 font-medium">Tagihan: Tanggal {l.billingDay}</p>
                             </div>
                           </div>
                         ))
@@ -596,15 +598,15 @@ export default function App() {
                     <div className="space-y-3">
                       <h3 className="font-semibold text-slate-800 dark:text-slate-200 text-sm flex items-center gap-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
                         <ShieldAlert className="w-4 h-4 text-rose-500" />
-                        Compliance Monitoring
+                        Pemantauan Kepatuhan
                       </h3>
                       
                       <div className="space-y-2.5">
                         {compliance.filter(c => c.status !== 'resolved').length === 0 ? (
                           <div className="text-center py-10 space-y-2">
                             <CheckCircle className="w-6 h-6 text-emerald-500 mx-auto" />
-                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">Zero Active Violations</p>
-                            <p className="text-[10px] text-slate-400">All tenants are fully compliant with house policies.</p>
+                            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">Nol Pelanggaran Aktif</p>
+                            <p className="text-[10px] text-slate-400">Semua tenant sepenuhnya patuh terhadap tata tertib gedung.</p>
                           </div>
                         ) : (
                           compliance.filter(c => c.status !== 'resolved').slice(0, 3).map(c => (
@@ -612,7 +614,7 @@ export default function App() {
                               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 flex-shrink-0 animate-ping"></span>
                               <div>
                                 <p className="font-semibold text-slate-900 dark:text-slate-200">{c.tenantName} (Unit {c.unitNumber})</p>
-                                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px] capitalize">{c.category} violation — <span className="font-bold text-rose-600">{c.severity} severity</span></p>
+                                <p className="text-slate-500 dark:text-slate-400 mt-0.5 text-[11px] capitalize">Pelanggaran {c.category === 'noise' ? 'kebisingan' : c.category === 'maintenance' ? 'pemeliharaan' : 'lainnya'} — <span className="font-bold text-rose-600">{c.severity === 'high' ? 'Tinggi' : c.severity === 'medium' ? 'Sedang' : 'Rendah'}</span></p>
                               </div>
                             </div>
                           ))
@@ -621,10 +623,10 @@ export default function App() {
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-slate-800 mt-3 flex justify-between items-center text-[11px]">
-                      <span className="text-slate-500 font-medium">Auto-renew active?</span>
+                      <span className="text-slate-500 font-medium">Perpanjang otomatis aktif?</span>
                       <span className="text-emerald-600 font-bold flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                        On
+                        Ya
                       </span>
                     </div>
                   </div>
