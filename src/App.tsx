@@ -47,6 +47,39 @@ export default function App() {
   const [simulating, setSimulating] = useState(false);
   const [simulationLogs, setSimulationLogs] = useState<string[]>([]);
 
+  // Beautiful State-based Dialogs to replace native alert() and confirm()
+  const [customModal, setCustomModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'alert' | 'confirm';
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'alert'
+  });
+
+  const showAlert = (title: string, message: string) => {
+    setCustomModal({
+      isOpen: true,
+      title,
+      message,
+      type: 'alert'
+    });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setCustomModal({
+      isOpen: true,
+      title,
+      message,
+      type: 'confirm',
+      onConfirm
+    });
+  };
+
   // 1. Authenticate & Seed Database
   useEffect(() => {
     const activeMode = getDbMode();
@@ -234,60 +267,64 @@ export default function App() {
     setSimulationLogs(prev => [msg, ...prev.slice(0, 9)]);
   };
 
-  const handleClearAllData = async () => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus semua data? Tindakan ini akan mengosongkan seluruh database sewa dan properti Anda.")) {
-      return;
-    }
-
-    try {
-      if (getDbMode() === "sandbox") {
-        clearAllSandboxData();
-        alert("Semua data lokal berhasil dihapus! Aplikasi sekarang dalam kondisi kosong.");
-      } else {
-        // Firebase mode: loop through all loaded items and delete them
-        setSimulating(true);
-        // Delete compliance
-        for (const item of compliance) {
-          await deleteDocument("compliance", item.id);
+  const handleClearAllData = () => {
+    showConfirm(
+      "Kosongkan Seluruh Database",
+      "Apakah Anda yakin ingin menghapus semua data? Tindakan ini akan mengosongkan seluruh database sewa, pembayaran, kepatuhan, serta properti Anda.",
+      async () => {
+        try {
+          if (getDbMode() === "sandbox") {
+            clearAllSandboxData();
+            showAlert("Berhasil", "Semua data lokal berhasil dihapus! Aplikasi sekarang dalam kondisi kosong.");
+          } else {
+            // Firebase mode: loop through all loaded items and delete them
+            setSimulating(true);
+            // Delete compliance
+            for (const item of compliance) {
+              await deleteDocument("compliance", item.id);
+            }
+            // Delete payments
+            for (const item of payments) {
+              await deleteDocument("payments", item.id);
+            }
+            // Delete leases
+            for (const item of leases) {
+              await deleteDocument("leases", item.id);
+            }
+            // Delete properties
+            for (const item of properties) {
+              await deleteDocument("properties", item.id);
+            }
+            showAlert("Berhasil", "Semua data di cloud Firestore berhasil dihapus! Database sekarang kosong.");
+          }
+        } catch (err: any) {
+          console.error(err);
+          showAlert("Gagal", "Gagal mengosongkan data: " + err.message);
+        } finally {
+          setSimulating(false);
         }
-        // Delete payments
-        for (const item of payments) {
-          await deleteDocument("payments", item.id);
-        }
-        // Delete leases
-        for (const item of leases) {
-          await deleteDocument("leases", item.id);
-        }
-        // Delete properties
-        for (const item of properties) {
-          await deleteDocument("properties", item.id);
-        }
-        alert("Semua data di cloud Firestore berhasil dihapus! Database sekarang kosong.");
       }
-    } catch (err: any) {
-      console.error(err);
-      alert("Gagal mengosongkan data: " + err.message);
-    } finally {
-      setSimulating(false);
-    }
+    );
   };
 
-  const handleRestoreSampleData = async () => {
-    if (!window.confirm("Apakah Anda yakin ingin memulihkan data contoh bawaan? Tindakan ini akan menimpa data yang ada saat ini di sandbox.")) {
-      return;
-    }
-
-    try {
-      if (getDbMode() === "sandbox") {
-        restoreSampleSandboxData();
-        alert("Data contoh berhasil dipulihkan!");
-      } else {
-        alert("Untuk memulihkan data di Firestore, silakan segarkan halaman ini jika database kosong untuk memicu pengisian otomatis.");
+  const handleRestoreSampleData = () => {
+    showConfirm(
+      "Pulihkan Data Contoh",
+      "Apakah Anda yakin ingin memulihkan data contoh bawaan? Tindakan ini akan menimpa data yang ada saat ini di sandbox.",
+      async () => {
+        try {
+          if (getDbMode() === "sandbox") {
+            restoreSampleSandboxData();
+            showAlert("Berhasil", "Data contoh berhasil dipulihkan!");
+          } else {
+            showAlert("Info", "Untuk memulihkan data di Firestore, silakan segarkan halaman ini jika database kosong untuk memicu pengisian otomatis.");
+          }
+        } catch (err: any) {
+          console.error(err);
+          showAlert("Gagal", "Gagal memulihkan data contoh: " + err.message);
+        }
       }
-    } catch (err: any) {
-      console.error(err);
-      alert("Gagal memulihkan data contoh: " + err.message);
-    }
+    );
   };
 
   const handleGoogleSignIn = async () => {
@@ -297,7 +334,7 @@ export default function App() {
       window.location.reload();
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      alert("Google Sign-In failed or was blocked. Please try using Sandbox Mode!");
+      showAlert("Autentikasi Gagal", "Google Sign-In gagal atau diblokir oleh iFrame browser. Silakan coba gunakan Sandbox Mode!");
     }
   };
 
@@ -374,6 +411,52 @@ export default function App() {
             SECURE V4.1.14 // SYSTEM OPERATIONAL
           </div>
         </div>
+
+        {/* Custom React Modal replacing native alert/confirm */}
+        {customModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-sans">
+            <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg shrink-0">
+                  <AlertTriangle className="w-5 h-5 animate-pulse text-amber-500" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white">{customModal.title}</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">{customModal.message}</p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
+                {customModal.type === 'confirm' ? (
+                  <>
+                    <button
+                      onClick={() => setCustomModal(prev => ({ ...prev, isOpen: false }))}
+                      className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded text-xs font-semibold transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCustomModal(prev => ({ ...prev, isOpen: false }));
+                        if (customModal.onConfirm) customModal.onConfirm();
+                      }}
+                      className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-semibold transition-colors"
+                    >
+                      Ya, Lanjutkan
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setCustomModal(prev => ({ ...prev, isOpen: false }))}
+                    className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold transition-colors"
+                  >
+                    OK
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -762,6 +845,52 @@ export default function App() {
 
         </div>
       </main>
+
+      {/* Custom React Modal replacing native alert/confirm */}
+      {customModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs font-sans">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg shrink-0">
+                <AlertTriangle className="w-5 h-5 animate-pulse text-amber-500" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-white">{customModal.title}</h3>
+                <p className="text-xs text-slate-400 leading-relaxed">{customModal.message}</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800/80">
+              {customModal.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={() => setCustomModal(prev => ({ ...prev, isOpen: false }))}
+                    className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-750 text-slate-300 rounded text-xs font-semibold transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomModal(prev => ({ ...prev, isOpen: false }));
+                      if (customModal.onConfirm) customModal.onConfirm();
+                    }}
+                    className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-xs font-semibold transition-colors"
+                  >
+                    Ya, Lanjutkan
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setCustomModal(prev => ({ ...prev, isOpen: false }))}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-semibold transition-colors"
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
