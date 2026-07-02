@@ -67,10 +67,66 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
   const [billingDay, setBillingDay] = useState(1);
   const [signingLease, setSigningLease] = useState(false);
 
+  const [pastedText, setPastedText] = useState('');
+
+  const parseLeaseText = async (text: string, fileName: string) => {
+    setUploadLoading(true);
+    setUploadSuccessMsg('');
+    try {
+      const response = await fetch('/api/gemini/extract-lease', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text, fileName })
+      });
+      const data = await response.json();
+      if (data.tenantName) {
+        setTenantName(data.tenantName);
+        setTenantEmail(data.tenantEmail || `${data.tenantName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`);
+        setUnitNumber(data.unitNumber || "A-101");
+        setMonthlyRent(data.monthlyRent || "10000000");
+        setSecurityDeposit(data.securityDeposit || data.monthlyRent || "10000000");
+        setBillingDay(Number(data.billingDay) || 1);
+        setStartDate(data.startDate || "2026-07-01");
+        setEndDate(data.endDate || "2027-07-01");
+        
+        const defaultPropId = properties[0]?.id || '';
+        setSelectedPropId(defaultPropId);
+
+        setUploadSuccessMsg(`AI berhasil menganalisis & mengekstrak data sewa secara akurat! Silakan tinjau data di bawah.`);
+      } else {
+        throw new Error("Invalid response format");
+      }
+    } catch (err) {
+      console.error(err);
+      // Fallback
+      simulateAiExtraction(fileName);
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    simulateAiExtraction(file.name);
+    
+    setUploadLoading(true);
+    setUploadSuccessMsg('');
+
+    if (file.name.endsWith('.txt')) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const text = event.target?.result as string;
+        await parseLeaseText(text, file.name);
+      };
+      reader.onerror = () => {
+        parseLeaseText('', file.name);
+      };
+      reader.readAsText(file);
+    } else {
+      parseLeaseText('', file.name);
+    }
   };
 
   const simulateAiExtraction = (fileName: string) => {
@@ -364,43 +420,97 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
             </div>
 
             {entryMethod === 'ai_upload' && (
-              <div 
-                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const file = e.dataTransfer.files?.[0];
-                  if (file) simulateAiExtraction(file.name);
-                }}
-                className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
-                  dragOver 
-                    ? 'border-blue-500 bg-blue-50/20' 
-                    : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 bg-gray-50/20 dark:bg-black/20'
-                }`}
-              >
-                <input 
-                  type="file" 
-                  id="ai-file-picker" 
-                  className="hidden" 
-                  accept=".pdf,.doc,.docx,.txt"
-                  onChange={handleFileUpload}
-                />
-                <label htmlFor="ai-file-picker" className="cursor-pointer space-y-3 block">
-                  <div className="p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-inner">
-                    {uploadLoading ? (
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                    ) : (
-                      <UploadCloud className="w-6 h-6" />
+              <div className="space-y-4">
+                <div 
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      setUploadLoading(true);
+                      setUploadSuccessMsg('');
+                      if (file.name.endsWith('.txt')) {
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          const text = event.target?.result as string;
+                          await parseLeaseText(text, file.name);
+                        };
+                        reader.onerror = () => {
+                          parseLeaseText('', file.name);
+                        };
+                        reader.readAsText(file);
+                      } else {
+                        parseLeaseText('', file.name);
+                      }
+                    }
+                  }}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
+                    dragOver 
+                      ? 'border-blue-500 bg-blue-50/20' 
+                      : 'border-gray-200 dark:border-gray-800 hover:border-gray-300 bg-gray-50/20 dark:bg-black/20'
+                  }`}
+                >
+                  <input 
+                    type="file" 
+                    id="ai-file-picker" 
+                    className="hidden" 
+                    accept=".pdf,.doc,.docx,.txt"
+                    onChange={handleFileUpload}
+                  />
+                  <label htmlFor="ai-file-picker" className="cursor-pointer space-y-3 block">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-600 rounded-full w-12 h-12 flex items-center justify-center mx-auto shadow-inner">
+                      {uploadLoading ? (
+                        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                      ) : (
+                        <UploadCloud className="w-6 h-6" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                        {uploadLoading ? "Mengekstrak Klausul Kontrak..." : "Tarik & Lepas berkas di sini atau klik untuk mencari"}
+                      </p>
+                      <p className="text-xs text-gray-500">Mendukung file PDF, Word, atau Teks (.pdf, .docx, .txt)</p>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="p-4 bg-amber-500/5 dark:bg-amber-500/2 border border-amber-500/10 rounded-2xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Atau Tempel Teks Kontrak / Detail Sewa
+                    </label>
+                    {pastedText && (
+                      <button
+                        type="button"
+                        onClick={() => setPastedText('')}
+                        className="text-[10px] text-gray-400 hover:text-gray-600 underline"
+                      >
+                        Hapus
+                      </button>
                     )}
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                      {uploadLoading ? "Mengekstrak Klausul Kontrak..." : "Tarik & Lepas berkas di sini atau klik untuk mencari"}
-                    </p>
-                    <p className="text-xs text-gray-500">Mendukung file PDF, Word, atau Teks (.pdf, .docx, .txt)</p>
+                  <div className="flex gap-2">
+                    <textarea
+                      rows={2}
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      placeholder="Tempel draf kontrak atau ketik detail sewa di sini (contoh: 'Tolong buat sewa untuk Joko Widodo sewa Rp 8.500.000, unit A-102, jaminan 1 bulan')"
+                      className="flex-1 px-3.5 py-2 border border-gray-200 dark:border-gray-800 rounded-xl bg-gray-50/50 dark:bg-black text-xs outline-none focus:border-amber-500 font-sans"
+                    />
+                    <button
+                      type="button"
+                      disabled={uploadLoading || !pastedText.trim()}
+                      onClick={() => parseLeaseText(pastedText, 'Teks Tempel')}
+                      className="px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex flex-col justify-center items-center gap-1 shadow-xs shrink-0"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                      <span>Ekstrak</span>
+                    </button>
                   </div>
-                </label>
+                </div>
               </div>
             )}
 

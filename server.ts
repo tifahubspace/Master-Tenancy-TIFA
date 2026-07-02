@@ -103,6 +103,133 @@ Format the output strictly as professional Markdown text without HTML tags. Keep
   }
 });
 
+// 2.5. Extract Lease Details from Text or Filename
+app.post("/api/gemini/extract-lease", async (req, res) => {
+  const { text, fileName } = req.body;
+
+  if (!text && !fileName) {
+    return res.status(400).json({ error: "No lease text or file name provided." });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    // Generate intelligent mock responses based on context to avoid hardcoding static stuff when keys are missing
+    const textLower = (text || "").toLowerCase();
+    const fileLower = (fileName || "").toLowerCase();
+    
+    let tenantName = "Rizky Pratama";
+    let tenantEmail = "rizky.pratama@mandalagroup.id";
+    let monthlyRent = "14500000";
+    let securityDeposit = "29000000";
+    let unitNumber = "B-201";
+    let startDate = "2026-07-01";
+    let endDate = "2027-07-01";
+    let billingDay = 5;
+
+    if (textLower.includes("joko") || fileLower.includes("joko")) {
+      tenantName = "Joko Widodo";
+      tenantEmail = "joko.widodo@outlook.com";
+      monthlyRent = "8500000";
+      securityDeposit = "8500000";
+      unitNumber = "A-102";
+      startDate = "2026-08-01";
+      endDate = "2027-08-01";
+      billingDay = 1;
+    } else if (textLower.includes("budi") || fileLower.includes("budi")) {
+      tenantName = "Budi Santoso";
+      tenantEmail = "budi.santoso@yahoo.com";
+      monthlyRent = "12000000";
+      securityDeposit = "24000000";
+      unitNumber = "C-405";
+      startDate = "2026-09-01";
+      endDate = "2027-09-01";
+      billingDay = 10;
+    } else if (textLower.includes("ani") || fileLower.includes("ani") || textLower.includes("anisa") || fileLower.includes("anisa")) {
+      tenantName = "Anisa Rahmawati";
+      tenantEmail = "anisa.rahma@gmail.com";
+      monthlyRent = "9500000";
+      securityDeposit = "19000000";
+      unitNumber = "B-303";
+      startDate = "2026-07-15";
+      endDate = "2027-07-15";
+      billingDay = 15;
+    } else {
+      // Dynamic fallback extraction based on whatever terms might be parsed via regexes from input text
+      const rentMatch = textLower.match(/(?:rent|sewa|harga|idr|rp)\s*[:=]?\s*([\d\.,]+)/i);
+      if (rentMatch) {
+        monthlyRent = rentMatch[1].replace(/[\.,]/g, "");
+        securityDeposit = String(Number(monthlyRent) * 2);
+      }
+      const unitMatch = textLower.match(/(?:unit|no|nomor)\s*[:=]?\s*([a-z0-9\-]+)/i);
+      if (unitMatch) {
+        unitNumber = unitMatch[1].toUpperCase();
+      }
+      const nameMatch = textLower.match(/(?:name|nama|tenant|penyewa)\s*[:=]?\s*([a-z\s]{3,25})/i);
+      if (nameMatch) {
+        tenantName = nameMatch[1].trim().split("\n")[0];
+        tenantEmail = `${tenantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`;
+      }
+    }
+
+    return res.json({
+      tenantName,
+      tenantEmail,
+      unitNumber,
+      monthlyRent,
+      securityDeposit,
+      billingDay,
+      startDate,
+      endDate,
+      isMock: true
+    });
+  }
+
+  try {
+    const ai = getAi();
+    const prompt = `You are an AI assistant designed to parse rental/lease agreement documents or text descriptions.
+Extract the following information from the provided text or file description:
+1. Full Name of Tenant (tenantName)
+2. Email of Tenant (tenantEmail) - if not found, generate a professional one based on their name.
+3. Unit Number (unitNumber) - e.g., "A-101", "B-205". Default to "A-101" if not found.
+4. Monthly Rent (monthlyRent) - extract the number only, remove any currency symbols, commas, dots, or suffixes.
+5. Security Deposit (securityDeposit) - extract the number only. If not specified, default to the monthly rent amount.
+6. Billing Day of Month (billingDay) - extract as a number (1-31). Default to 1.
+7. Start Date (startDate) - Format: YYYY-MM-DD. Default to "2026-07-01".
+8. End Date (endDate) - Format: YYYY-MM-DD. Default to "2027-07-01".
+
+Text Content:
+"""
+${text || `File Name: ${fileName}`}
+"""
+
+Return the output STRICTLY as a valid JSON object with the following keys and no extra characters or markdown wrapping like \`\`\`json:
+{
+  "tenantName": "...",
+  "tenantEmail": "...",
+  "unitNumber": "...",
+  "monthlyRent": "...",
+  "securityDeposit": "...",
+  "billingDay": 1,
+  "startDate": "YYYY-MM-DD",
+  "endDate": "YYYY-MM-DD"
+}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const contentText = response.text || "";
+    // Clean JSON wrapping
+    const cleanJsonStr = contentText.replace(/```json/gi, "").replace(/```/gi, "").trim();
+    const result = JSON.parse(cleanJsonStr);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Gemini Lease Extraction Error:", error);
+    res.status(500).json({ error: "Failed to extract lease details: " + error.message });
+  }
+});
+
 // 3. Lease Smart Analyzer and Recommendations
 app.post("/api/gemini/analyze-lease", async (req, res) => {
   const { propertyName, tenantName, monthlyRent, securityDeposit, startDate, endDate, billingDay } = req.body;

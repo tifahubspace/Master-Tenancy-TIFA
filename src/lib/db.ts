@@ -6,7 +6,8 @@ import {
   doc, 
   query, 
   orderBy, 
-  getDocs
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Property, Lease, Payment, Compliance } from '../types';
@@ -152,6 +153,66 @@ export async function addDocument(collectionName: CollectionName, data: any): Pr
     (localData[collectionName] as any[]).unshift(item);
     saveAndNotify(collectionName);
   }
+}
+
+/**
+ * Universal Delete Helper
+ * Dynamically deletes a document from either Firestore or Local Sandbox.
+ */
+export async function deleteDocument(collectionName: CollectionName, id: string): Promise<void> {
+  const mode = getDbMode();
+
+  if (mode === "firebase") {
+    try {
+      await deleteDoc(doc(db, collectionName, id));
+    } catch (error) {
+      console.error(`Firebase delete error on ${collectionName}:`, error);
+      throw error;
+    }
+  } else {
+    localData[collectionName] = (localData[collectionName] as any[]).filter(item => item.id !== id);
+    saveAndNotify(collectionName);
+  }
+}
+
+/**
+ * Clear all local sandbox data to start blank
+ */
+export function clearAllSandboxData() {
+  localData.properties = [];
+  localData.leases = [];
+  localData.payments = [];
+  localData.compliance = [];
+
+  localStorage.setItem("sandbox_properties", JSON.stringify([]));
+  localStorage.setItem("sandbox_leases", JSON.stringify([]));
+  localStorage.setItem("sandbox_payments", JSON.stringify([]));
+  localStorage.setItem("sandbox_compliance", JSON.stringify([]));
+
+  saveAndNotify("properties");
+  saveAndNotify("leases");
+  saveAndNotify("payments");
+  saveAndNotify("compliance");
+}
+
+/**
+ * Restore sample data to sandbox
+ */
+export function restoreSampleSandboxData() {
+  localData.properties = sampleProperties;
+  localData.leases = sampleLeases;
+  localData.payments = samplePayments;
+  localData.compliance = sampleCompliance;
+
+  localStorage.setItem("sandbox_properties", JSON.stringify(sampleProperties));
+  localStorage.setItem("sandbox_leases", JSON.stringify(sampleLeases));
+  localStorage.setItem("sandbox_payments", JSON.stringify(samplePayments));
+  localStorage.setItem("sandbox_compliance", JSON.stringify(sampleCompliance));
+
+  saveAndNotify("properties");
+  saveAndNotify("leases");
+  saveAndNotify("payments");
+  saveAndNotify("compliance");
 }
 
 /**

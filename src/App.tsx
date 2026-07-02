@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, ensureAuthenticated, googleProvider, signInWithPopup, signOut } from './lib/firebase';
-import { subscribeToCollection, addDocument, getDbMode, setDbMode, seedFirestoreIfEmpty } from './lib/db';
+import { subscribeToCollection, addDocument, getDbMode, setDbMode, seedFirestoreIfEmpty, deleteDocument, clearAllSandboxData, restoreSampleSandboxData } from './lib/db';
 import { Property, Lease, Payment, Compliance, PortfolioStats } from './types';
 
 // Import Modular Panels
@@ -232,6 +232,62 @@ export default function App() {
 
   const addSimLog = (msg: string) => {
     setSimulationLogs(prev => [msg, ...prev.slice(0, 9)]);
+  };
+
+  const handleClearAllData = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus semua data? Tindakan ini akan mengosongkan seluruh database sewa dan properti Anda.")) {
+      return;
+    }
+
+    try {
+      if (getDbMode() === "sandbox") {
+        clearAllSandboxData();
+        alert("Semua data lokal berhasil dihapus! Aplikasi sekarang dalam kondisi kosong.");
+      } else {
+        // Firebase mode: loop through all loaded items and delete them
+        setSimulating(true);
+        // Delete compliance
+        for (const item of compliance) {
+          await deleteDocument("compliance", item.id);
+        }
+        // Delete payments
+        for (const item of payments) {
+          await deleteDocument("payments", item.id);
+        }
+        // Delete leases
+        for (const item of leases) {
+          await deleteDocument("leases", item.id);
+        }
+        // Delete properties
+        for (const item of properties) {
+          await deleteDocument("properties", item.id);
+        }
+        alert("Semua data di cloud Firestore berhasil dihapus! Database sekarang kosong.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal mengosongkan data: " + err.message);
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  const handleRestoreSampleData = async () => {
+    if (!window.confirm("Apakah Anda yakin ingin memulihkan data contoh bawaan? Tindakan ini akan menimpa data yang ada saat ini di sandbox.")) {
+      return;
+    }
+
+    try {
+      if (getDbMode() === "sandbox") {
+        restoreSampleSandboxData();
+        alert("Data contoh berhasil dipulihkan!");
+      } else {
+        alert("Untuk memulihkan data di Firestore, silakan segarkan halaman ini jika database kosong untuk memicu pengisian otomatis.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Gagal memulihkan data contoh: " + err.message);
+    }
   };
 
   const handleGoogleSignIn = async () => {
@@ -450,6 +506,27 @@ export default function App() {
             <Database className="w-3 h-3 text-blue-400" />
             <span>Ganti ke {getDbMode() === "firebase" ? "Sandbox" : "Firestore"}</span>
           </button>
+
+          <div className="pt-2 border-t border-slate-850/80 flex gap-1.5">
+            <button
+              onClick={handleClearAllData}
+              title="Kosongkan Database"
+              className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 py-1 px-2 rounded text-[9px] font-medium transition-colors border border-rose-500/20 uppercase tracking-wider flex items-center justify-center gap-1"
+            >
+              <AlertTriangle className="w-2.5 h-2.5 text-rose-400" />
+              <span>Kosongkan</span>
+            </button>
+            {getDbMode() === "sandbox" && (
+              <button
+                onClick={handleRestoreSampleData}
+                title="Pulihkan Data Contoh"
+                className="flex-1 bg-slate-800 hover:bg-slate-750 text-slate-300 py-1 px-2 rounded text-[9px] font-medium transition-colors border border-slate-750 uppercase tracking-wider flex items-center justify-center gap-1"
+              >
+                <RefreshCw className="w-2.5 h-2.5 text-slate-400" />
+                <span>Pulihkan</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* User Card at the Bottom of Sidebar */}
