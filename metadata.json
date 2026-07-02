@@ -1,0 +1,6 @@
+{
+  "name": "Master Tenancy",
+  "description": "Building management software that tracks lease agreements, rental payments, and tenant compliance in real-time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

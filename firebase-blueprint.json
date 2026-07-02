@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "property": {
+      "title": "Property",
+      "description": "A building or unit managed in the tenancy system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "totalUnits": { "type": "integer" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "address", "totalUnits", "createdBy", "createdAt"]
+    },
+    "lease": {
+      "title": "Lease Agreement",
+      "description": "A lease agreement between a tenant and the building management",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "tenantEmail": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "unitNumber": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "monthlyRent": { "type": "number" },
+        "securityDeposit": { "type": "number" },
+        "billingDay": { "type": "integer" },
+        "status": { "type": "string", "enum": ["active", "expired", "terminated"] },
+        "complianceStatus": { "type": "string", "enum": ["compliant", "non_compliant", "pending_review"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "tenantId", "tenantName", "tenantEmail", "propertyId", "propertyName",
+        "unitNumber", "startDate", "endDate", "monthlyRent", "securityDeposit", "billingDay",
+        "status", "complianceStatus", "createdAt"
+      ]
+    },
+    "payment": {
+      "title": "Rental Payment",
+      "description": "A rental payment record tracking transaction status",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leaseId": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "unitNumber": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date" },
+        "paymentDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["paid", "partial", "late", "overdue"] },
+        "method": { "type": "string", "enum": ["bank_transfer", "credit_card", "cash", "check"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "leaseId", "tenantId", "tenantName", "propertyId", "propertyName", "unitNumber",
+        "amount", "dueDate", "status", "createdAt"
+      ]
+    },
+    "compliance": {
+      "title": "Tenant Compliance Record",
+      "description": "Tracks tenant compliance issues, reports, and resolution states",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leaseId": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyName": { "type": "string" },
+        "unitNumber": { "type": "string" },
+        "category": { "type": "string", "enum": ["noise", "maintenance", "pets", "unauthorized_guests", "late_payment", "other"] },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["resolved", "warning_issued", "under_review", "escalated"] },
+        "details": { "type": "string" },
+        "reportedBy": { "type": "string" },
+        "dateReported": { "type": "string", "format": "date" },
+        "resolvedDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id", "leaseId", "tenantId", "tenantName", "propertyId", "propertyName", "unitNumber",
+        "category", "severity", "status", "details", "reportedBy", "dateReported", "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "properties": {
+      "schema": "property",
+      "description": "Collection of properties managed in the building software"
+    },
+    "leases": {
+      "schema": "lease",
+      "description": "Collection of leases and rental agreements"
+    },
+    "payments": {
+      "schema": "payment",
+      "description": "Collection of payment logs and invoices"
+    },
+    "compliance": {
+      "schema": "compliance",
+      "description": "Collection of compliance cases and notices"
+    }
+  }
+}
