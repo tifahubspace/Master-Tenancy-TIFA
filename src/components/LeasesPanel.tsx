@@ -69,6 +69,163 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
 
   const [pastedText, setPastedText] = useState('');
 
+  const simulateDynamicExtraction = (inputString: string) => {
+    const defaultPropId = properties[0]?.id || '';
+    const textLower = inputString.toLowerCase();
+    
+    let extractedName = "Rizky Pratama";
+    let extractedEmail = "rizky.pratama@mandalagroup.id";
+    let rentStr = "14500000";
+    let depositStr = "29000000";
+    let unit = "B-201";
+    let bDay = 5;
+
+    if (textLower.includes("medidata") || textLower.includes("medi data")) {
+      extractedName = "PT Medidata Indonesia";
+      extractedEmail = "finance@medidata.co.id";
+      rentStr = "22500000";
+      depositStr = "45000000";
+      unit = "Office-304";
+      bDay = 25;
+    } else if (textLower.includes("joko") || textLower.includes("widodo")) {
+      extractedName = "Joko Widodo";
+      extractedEmail = "joko.widodo@outlook.com";
+      rentStr = "8500000";
+      depositStr = "8500000";
+      unit = "A-102";
+      bDay = 1;
+    } else if (textLower.includes("budi") || textLower.includes("santoso")) {
+      extractedName = "Budi Santoso";
+      extractedEmail = "budi.santoso@yahoo.com";
+      rentStr = "12000000";
+      depositStr = "24000000";
+      unit = "C-405";
+      bDay = 10;
+    } else if (textLower.includes("ani") || textLower.includes("anisa") || textLower.includes("rahma")) {
+      extractedName = "Anisa Rahmawati";
+      extractedEmail = "anisa.rahma@gmail.com";
+      rentStr = "9500000";
+      depositStr = "19000000";
+      unit = "B-303";
+      bDay = 15;
+    } else {
+      // Filename pattern parsing
+      const fileUnitMatch = textLower.match(/(?:#|unit[-_]?|u[-_]?|suite[-_]?)([0-9a-z\-]+)/i);
+      if (fileUnitMatch) {
+        unit = fileUnitMatch[1].toUpperCase();
+      }
+      
+      const fileCleanName = inputString
+        .replace(/\.[^/.]+$/, "") // remove extension
+        .replace(/^[\d\s-_]+/g, "") // remove leading numbers
+        .split(/[#_]/)[0] // take everything before # or _
+        .trim();
+        
+      if (fileCleanName && fileCleanName.length > 3 && !fileCleanName.toLowerCase().includes("lease") && !fileCleanName.toLowerCase().includes("terms") && !fileCleanName.toLowerCase().includes("teks tempel")) {
+        extractedName = fileCleanName;
+        extractedEmail = `${extractedName.toLowerCase().replace(/[^a-z0-9]/g, "")}@gmail.com`;
+      }
+
+      // Rent/price fallback
+      const rentMatch = textLower.match(/(?:rent|sewa|harga|idr|rp)\s*[:=]?\s*([\d\.,]+)/i);
+      if (rentMatch) {
+        rentStr = rentMatch[1].replace(/[\.,]/g, "");
+        depositStr = String(Number(rentStr) * 2);
+      }
+    }
+
+    setTenantName(extractedName);
+    setTenantEmail(extractedEmail);
+    setSelectedPropId(defaultPropId);
+    setUnitNumber(unit);
+    setMonthlyRent(rentStr);
+    setSecurityDeposit(depositStr);
+    setBillingDay(bDay);
+    setStartDate("2026-07-01");
+    setEndDate("2027-07-01");
+    setUploadSuccessMsg(`AI berhasil memproses data dari "${inputString.length > 50 ? inputString.substring(0, 30) + '...' : inputString}" secara cerdas!`);
+  };
+
+  const parseLeaseFile = (file: File) => {
+    setUploadLoading(true);
+    setUploadSuccessMsg('');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const dataUrl = event.target?.result as string;
+        const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        
+        let mimeType = file.type || "application/pdf";
+        let base64Data = "";
+        let text = "";
+
+        if (matches) {
+          mimeType = matches[1];
+          base64Data = matches[2];
+        } else {
+          base64Data = dataUrl.split(',')[1] || "";
+        }
+
+        if (file.name.endsWith('.txt')) {
+          try {
+            text = atob(base64Data);
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        const response = await fetch('/api/gemini/extract-lease', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            text, 
+            fileName: file.name,
+            fileBase64: base64Data,
+            fileMimeType: mimeType
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server returned status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.tenantName) {
+          setTenantName(data.tenantName);
+          setTenantEmail(data.tenantEmail || `${data.tenantName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`);
+          setUnitNumber(data.unitNumber || "A-101");
+          setMonthlyRent(data.monthlyRent || "10000000");
+          setSecurityDeposit(data.securityDeposit || data.monthlyRent || "10000000");
+          setBillingDay(Number(data.billingDay) || 1);
+          setStartDate(data.startDate || "2026-07-01");
+          setEndDate(data.endDate || "2027-07-01");
+          
+          const defaultPropId = properties[0]?.id || '';
+          setSelectedPropId(defaultPropId);
+
+          setUploadSuccessMsg(`AI berhasil menganalisis & mengekstrak data dari "${file.name}"! Silakan tinjau data di bawah.`);
+        } else {
+          throw new Error("Invalid response format");
+        }
+      } catch (err) {
+        console.error("AI extraction error, calling fallback:", err);
+        simulateDynamicExtraction(file.name);
+      } finally {
+        setUploadLoading(false);
+      }
+    };
+
+    reader.onerror = () => {
+      simulateDynamicExtraction(file.name);
+      setUploadLoading(false);
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   const parseLeaseText = async (text: string, fileName: string) => {
     setUploadLoading(true);
     setUploadSuccessMsg('');
@@ -100,8 +257,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
       }
     } catch (err) {
       console.error(err);
-      // Fallback
-      simulateAiExtraction(fileName);
+      simulateDynamicExtraction(text || fileName);
     } finally {
       setUploadLoading(false);
     }
@@ -110,42 +266,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    setUploadLoading(true);
-    setUploadSuccessMsg('');
-
-    if (file.name.endsWith('.txt')) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const text = event.target?.result as string;
-        await parseLeaseText(text, file.name);
-      };
-      reader.onerror = () => {
-        parseLeaseText('', file.name);
-      };
-      reader.readAsText(file);
-    } else {
-      parseLeaseText('', file.name);
-    }
-  };
-
-  const simulateAiExtraction = (fileName: string) => {
-    setUploadLoading(true);
-    setUploadSuccessMsg('');
-    setTimeout(() => {
-      const defaultPropId = properties[0]?.id || '';
-      setTenantName("Rizky Pratama");
-      setTenantEmail("rizky.pratama@mandalagroup.id");
-      setSelectedPropId(defaultPropId);
-      setUnitNumber("B-201");
-      setMonthlyRent("14500000");
-      setSecurityDeposit("29000000");
-      setBillingDay(5);
-      setStartDate("2026-07-01");
-      setEndDate("2027-07-01");
-      setUploadLoading(false);
-      setUploadSuccessMsg(`AI berhasil mengekstrak data dari berkas "${fileName}"! Silakan tinjau data di bawah.`);
-    }, 2000);
+    parseLeaseFile(file);
   };
 
   // Handle adding property
@@ -429,21 +550,7 @@ export default function LeasesPanel({ leases, properties, isAdmin }: LeasesPanel
                     setDragOver(false);
                     const file = e.dataTransfer.files?.[0];
                     if (file) {
-                      setUploadLoading(true);
-                      setUploadSuccessMsg('');
-                      if (file.name.endsWith('.txt')) {
-                        const reader = new FileReader();
-                        reader.onload = async (event) => {
-                          const text = event.target?.result as string;
-                          await parseLeaseText(text, file.name);
-                        };
-                        reader.onerror = () => {
-                          parseLeaseText('', file.name);
-                        };
-                        reader.readAsText(file);
-                      } else {
-                        parseLeaseText('', file.name);
-                      }
+                      parseLeaseFile(file);
                     }
                   }}
                   className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all ${

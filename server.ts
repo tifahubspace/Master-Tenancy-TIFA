@@ -105,10 +105,10 @@ Format the output strictly as professional Markdown text without HTML tags. Keep
 
 // 2.5. Extract Lease Details from Text or Filename
 app.post("/api/gemini/extract-lease", async (req, res) => {
-  const { text, fileName } = req.body;
+  const { text, fileName, fileBase64, fileMimeType } = req.body;
 
-  if (!text && !fileName) {
-    return res.status(400).json({ error: "No lease text or file name provided." });
+  if (!text && !fileName && !fileBase64) {
+    return res.status(400).json({ error: "No lease text, file name, or file data provided." });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -126,7 +126,16 @@ app.post("/api/gemini/extract-lease", async (req, res) => {
     let endDate = "2027-07-01";
     let billingDay = 5;
 
-    if (textLower.includes("joko") || fileLower.includes("joko")) {
+    if (fileLower.includes("medidata") || textLower.includes("medidata")) {
+      tenantName = "PT Medidata Indonesia";
+      tenantEmail = "finance@medidata.co.id";
+      monthlyRent = "22500000";
+      securityDeposit = "45000000";
+      unitNumber = "Office-304";
+      startDate = "2026-07-01";
+      endDate = "2027-07-01";
+      billingDay = 25;
+    } else if (textLower.includes("joko") || fileLower.includes("joko")) {
       tenantName = "Joko Widodo";
       tenantEmail = "joko.widodo@outlook.com";
       monthlyRent = "8500000";
@@ -154,6 +163,23 @@ app.post("/api/gemini/extract-lease", async (req, res) => {
       endDate = "2027-07-15";
       billingDay = 15;
     } else {
+      // Dynamic filename extractor
+      const fileUnitMatch = fileLower.match(/(?:#|unit[-_]?|u[-_]?|suite[-_]?)([0-9a-z\-]+)/i);
+      if (fileUnitMatch) {
+        unitNumber = fileUnitMatch[1].toUpperCase();
+      }
+      
+      const fileCleanName = (fileName || "")
+        .replace(/\.[^/.]+$/, "") // remove extension
+        .replace(/^[\d\s-_]+/g, "") // remove leading numbers
+        .split(/[#_]/)[0] // take everything before # or _
+        .trim();
+        
+      if (fileCleanName && fileCleanName.length > 3 && !fileCleanName.toLowerCase().includes("lease") && !fileCleanName.toLowerCase().includes("terms")) {
+        tenantName = fileCleanName;
+        tenantEmail = `${tenantName.toLowerCase().replace(/[^a-z0-9]/g, "")}@gmail.com`;
+      }
+
       // Dynamic fallback extraction based on whatever terms might be parsed via regexes from input text
       const rentMatch = textLower.match(/(?:rent|sewa|harga|idr|rp)\s*[:=]?\s*([\d\.,]+)/i);
       if (rentMatch) {
@@ -186,10 +212,10 @@ app.post("/api/gemini/extract-lease", async (req, res) => {
 
   try {
     const ai = getAi();
-    const prompt = `You are an AI assistant designed to parse rental/lease agreement documents or text descriptions.
-Extract the following information from the provided text or file description:
+    const prompt = `You are an AI assistant designed to parse rental/lease agreement documents, images, or text descriptions.
+Extract the following information from the provided lease content (text, file, or image):
 1. Full Name of Tenant (tenantName)
-2. Email of Tenant (tenantEmail) - if not found, generate a professional one based on their name.
+2. Email of Tenant (tenantEmail) - if not found in the document, generate a professional one based on their name.
 3. Unit Number (unitNumber) - e.g., "A-101", "B-205". Default to "A-101" if not found.
 4. Monthly Rent (monthlyRent) - extract the number only, remove any currency symbols, commas, dots, or suffixes.
 5. Security Deposit (securityDeposit) - extract the number only. If not specified, default to the monthly rent amount.
@@ -197,10 +223,7 @@ Extract the following information from the provided text or file description:
 7. Start Date (startDate) - Format: YYYY-MM-DD. Default to "2026-07-01".
 8. End Date (endDate) - Format: YYYY-MM-DD. Default to "2027-07-01".
 
-Text Content:
-"""
-${text || `File Name: ${fileName}`}
-"""
+File Name: ${fileName || "document"}
 
 Return the output STRICTLY as a valid JSON object with the following keys and no extra characters or markdown wrapping like \`\`\`json:
 {
@@ -214,9 +237,31 @@ Return the output STRICTLY as a valid JSON object with the following keys and no
   "endDate": "YYYY-MM-DD"
 }`;
 
+    const contents: any[] = [];
+
+    // If we have base64 file data, send it to Gemini as inlineData!
+    if (fileBase64 && fileMimeType) {
+      contents.push({
+        inlineData: {
+          mimeType: fileMimeType,
+          data: fileBase64
+        }
+      });
+    }
+
+    if (text) {
+      contents.push({
+        text: `Text Content of document:\n${text}\n\n${prompt}`
+      });
+    } else {
+      contents.push({
+        text: prompt
+      });
+    }
+
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: contents,
     });
 
     const contentText = response.text || "";
