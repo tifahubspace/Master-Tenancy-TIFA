@@ -7,19 +7,19 @@ service cloud.firestore {
     }
 
     match /properties/{propertyId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /leases/{leaseId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /payments/{paymentId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
 
     match /compliance/{complianceId} {
-      allow read, write: if isAuthenticated();
+      allow read, write: if true;
     }
   }
 }

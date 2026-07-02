@@ -93,6 +93,27 @@ export default function App() {
       return;
     }
 
+    const bypassAuth = localStorage.getItem("db_bypass_auth") === "true";
+    if (bypassAuth) {
+      setUser({
+        uid: "firebase-guest-bypass",
+        email: "guest@firestore.pro",
+        displayName: "Firestore Guest"
+      } as User);
+
+      const seedAndFinish = async () => {
+        try {
+          await seedFirestoreIfEmpty();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setInitializing(false);
+        }
+      };
+      seedAndFinish();
+      return;
+    }
+
     let authUnsubscribe = () => {};
 
     const setupAuthAndSeed = async () => {
@@ -115,6 +136,7 @@ export default function App() {
     setupAuthAndSeed();
 
     authUnsubscribe = onAuthStateChanged(auth, (u) => {
+      if (localStorage.getItem("db_bypass_auth") === "true") return;
       setUser(u);
     });
 
@@ -338,8 +360,20 @@ export default function App() {
     }
   };
 
+  const handleUseFirestoreBypass = async () => {
+    try {
+      setDbMode("firebase");
+      localStorage.setItem("db_bypass_auth", "true");
+      window.location.reload();
+    } catch (err: any) {
+      console.error(err);
+      showAlert("Gagal", "Gagal menghubungkan ke Firestore: " + err.message);
+    }
+  };
+
   const handleUseSandbox = () => {
     setDbMode("sandbox");
+    localStorage.removeItem("db_bypass_auth");
     window.location.reload();
   };
 
@@ -389,6 +423,16 @@ export default function App() {
             >
               <span>Sign In with Google</span>
               <ArrowRight className="w-4 h-4" />
+            </button>
+
+            {/* Direct Cloud Firestore Bypass Button */}
+            <button
+              id="btn-bypass-firestore"
+              onClick={handleUseFirestoreBypass}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-4 rounded font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-emerald-500/10 uppercase tracking-wider font-sans"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-300 animate-pulse" />
+              <span>Gunakan Cloud Firestore (Direct Sync)</span>
             </button>
 
             <div className="flex items-center justify-between text-[10px] text-slate-500 uppercase font-bold tracking-wider py-1">
@@ -581,7 +625,11 @@ export default function App() {
           <button
             onClick={() => {
               const current = getDbMode();
-              setDbMode(current === "firebase" ? "sandbox" : "firebase");
+              const target = current === "firebase" ? "sandbox" : "firebase";
+              setDbMode(target);
+              if (target === "sandbox") {
+                localStorage.removeItem("db_bypass_auth");
+              }
               window.location.reload();
             }}
             className="w-full bg-slate-800 hover:bg-slate-750 text-slate-300 py-1 px-2 rounded text-[10px] font-medium transition-colors flex items-center justify-center gap-1.5 border border-slate-700 uppercase tracking-wider"
@@ -630,6 +678,7 @@ export default function App() {
           {getDbMode() === "firebase" && (
             <button 
               onClick={() => {
+                localStorage.removeItem("db_bypass_auth");
                 signOut(auth);
                 window.location.reload();
               }}
