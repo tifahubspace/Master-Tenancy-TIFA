@@ -11,10 +11,43 @@ import {
   deleteDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { Property, Lease, Payment, Compliance } from '../types';
-import { sampleProperties, sampleLeases, samplePayments, sampleCompliance } from './seed';
+import { 
+  Building, 
+  Floor, 
+  Unit, 
+  Tenant, 
+  Lease, 
+  Payment, 
+  Document, 
+  AuditLog, 
+  ApprovalWorkflow, 
+  Notification 
+} from '../types';
+import { 
+  sampleBuildings, 
+  sampleFloors, 
+  sampleUnits, 
+  sampleTenants, 
+  sampleLeases, 
+  samplePayments, 
+  sampleDocuments, 
+  sampleAuditLogs, 
+  sampleWorkflows, 
+  sampleNotifications 
+} from './seed';
 
-export type CollectionName = "properties" | "leases" | "payments" | "compliance";
+export type CollectionName = 
+  | "buildings" 
+  | "floors" 
+  | "units" 
+  | "tenants" 
+  | "leases" 
+  | "payments" 
+  | "documents" 
+  | "auditLogs" 
+  | "approvalWorkflows" 
+  | "notifications";
+
 export type DbMode = "firebase" | "sandbox";
 
 // Retrieve the current DB mode
@@ -24,8 +57,7 @@ export function getDbMode(): DbMode {
     return stored;
   }
   
-  // By default, if the user hasn't explicitly chosen, default to 'sandbox' to guarantee immediate
-  // workability out-of-the-box in restricted preview environments, then allow switching to live firebase.
+  // Default to 'sandbox' for safety & immediate usability
   return "sandbox";
 }
 
@@ -36,38 +68,46 @@ export function setDbMode(mode: DbMode) {
 
 // Local sandbox in-memory and localStorage cache
 const localData: {
-  properties: Property[];
+  buildings: Building[];
+  floors: Floor[];
+  units: Unit[];
+  tenants: Tenant[];
   leases: Lease[];
   payments: Payment[];
-  compliance: Compliance[];
+  documents: Document[];
+  auditLogs: AuditLog[];
+  approvalWorkflows: ApprovalWorkflow[];
+  notifications: Notification[];
 } = {
-  properties: [],
+  buildings: [],
+  floors: [],
+  units: [],
+  tenants: [],
   leases: [],
   payments: [],
-  compliance: []
+  documents: [],
+  auditLogs: [],
+  approvalWorkflows: [],
+  notifications: []
 };
 
 // Listeners list for the local sandbox reactive sync
 type Listener<T> = (data: T[]) => void;
 const listeners: { [key in CollectionName]: Listener<any>[] } = {
-  properties: [],
+  buildings: [],
+  floors: [],
+  units: [],
+  tenants: [],
   leases: [],
   payments: [],
-  compliance: []
+  documents: [],
+  auditLogs: [],
+  approvalWorkflows: [],
+  notifications: []
 };
 
 // Initialize sandbox data from localStorage or seed fallback
 function initSandbox() {
-  // Let's force reset if old property keys exist to prevent mixing data
-  const samplePropKeys = localStorage.getItem("sandbox_properties");
-  if (samplePropKeys && samplePropKeys.includes("Oakridge Heights")) {
-    console.log("Detected older non-Indonesian sample data, resetting sandbox state...");
-    localStorage.removeItem("sandbox_properties");
-    localStorage.removeItem("sandbox_leases");
-    localStorage.removeItem("sandbox_payments");
-    localStorage.removeItem("sandbox_compliance");
-  }
-
   const getOrSeed = <T>(key: CollectionName, fallback: T[]): T[] => {
     const val = localStorage.getItem(`sandbox_${key}`);
     if (val) {
@@ -81,10 +121,16 @@ function initSandbox() {
     return fallback;
   };
 
-  localData.properties = getOrSeed("properties", sampleProperties);
+  localData.buildings = getOrSeed("buildings", sampleBuildings);
+  localData.floors = getOrSeed("floors", sampleFloors);
+  localData.units = getOrSeed("units", sampleUnits);
+  localData.tenants = getOrSeed("tenants", sampleTenants);
   localData.leases = getOrSeed("leases", sampleLeases);
   localData.payments = getOrSeed("payments", samplePayments);
-  localData.compliance = getOrSeed("compliance", sampleCompliance);
+  localData.documents = getOrSeed("documents", sampleDocuments);
+  localData.auditLogs = getOrSeed("auditLogs", sampleAuditLogs);
+  localData.approvalWorkflows = getOrSeed("approvalWorkflows", sampleWorkflows);
+  localData.notifications = getOrSeed("notifications", sampleNotifications);
 }
 
 // Run initializer
@@ -104,7 +150,6 @@ export function subscribeToCollection<T>(collectionName: CollectionName, callbac
   const mode = getDbMode();
 
   if (mode === "firebase") {
-    // Firestore Path
     const q = query(collection(db, collectionName));
     return onSnapshot(q, (snapshot) => {
       const list: T[] = [];
@@ -117,11 +162,12 @@ export function subscribeToCollection<T>(collectionName: CollectionName, callbac
     });
   } else {
     // Sandbox Observer
+    if (!listeners[collectionName]) {
+      listeners[collectionName] = [];
+    }
     listeners[collectionName].push(callback);
-    // Fire callback immediately with current sandbox cache
     callback([...localData[collectionName]] as T[]);
 
-    // Return unsubscriber
     return () => {
       listeners[collectionName] = listeners[collectionName].filter(cb => cb !== callback);
     };
@@ -135,24 +181,72 @@ export function subscribeToCollection<T>(collectionName: CollectionName, callbac
 export async function addDocument(collectionName: CollectionName, data: any): Promise<void> {
   const mode = getDbMode();
 
+  // Log audit action
+  const logEntry: AuditLog = {
+    id: `log-${Date.now()}`,
+    action: `${collectionName.slice(0, -1).toUpperCase()}_ADD`,
+    user: "User TPMS Enterprise",
+    module: collectionName.toUpperCase(),
+    timestamp: new Date().toISOString(),
+    details: `Menambahkan data baru pada modul ${collectionName}: ${data.name || data.companyName || data.tenantName || data.title || "Record"}`
+  };
+
   if (mode === "firebase") {
-    // Write to Firebase Firestore
     try {
       await addDoc(collection(db, collectionName), data);
+      await addDoc(collection(db, "auditLogs"), logEntry);
     } catch (error) {
       console.error(`Firebase write error on collection ${collectionName}:`, error);
       throw error;
     }
   } else {
-    // Write to Local Storage Sandbox
     const item = { ...data };
     if (!item.id) {
       item.id = `${collectionName.slice(0, 3)}-${Date.now()}`;
     }
     
-    // Add to start or end of list based on createdAt
     (localData[collectionName] as any[]).unshift(item);
     saveAndNotify(collectionName);
+
+    // Save audit log too
+    localData.auditLogs.unshift(logEntry);
+    saveAndNotify("auditLogs");
+  }
+}
+
+/**
+ * Universal Update Helper
+ */
+export async function updateDocument(collectionName: CollectionName, id: string, data: any): Promise<void> {
+  const mode = getDbMode();
+
+  // Log audit action
+  const logEntry: AuditLog = {
+    id: `log-${Date.now()}`,
+    action: `${collectionName.slice(0, -1).toUpperCase()}_UPDATE`,
+    user: "User TPMS Enterprise",
+    module: collectionName.toUpperCase(),
+    timestamp: new Date().toISOString(),
+    details: `Memperbarui data id ${id} pada ${collectionName}`
+  };
+
+  if (mode === "firebase") {
+    try {
+      await setDoc(doc(db, collectionName, id), data, { merge: true });
+      await addDoc(collection(db, "auditLogs"), logEntry);
+    } catch (error) {
+      console.error(`Firebase update error on ${collectionName}:`, error);
+      throw error;
+    }
+  } else {
+    localData[collectionName] = (localData[collectionName] as any[]).map(item => 
+      item.id === id ? { ...item, ...data } : item
+    );
+    saveAndNotify(collectionName);
+
+    // Save audit log too
+    localData.auditLogs.unshift(logEntry);
+    saveAndNotify("auditLogs");
   }
 }
 
@@ -163,9 +257,20 @@ export async function addDocument(collectionName: CollectionName, data: any): Pr
 export async function deleteDocument(collectionName: CollectionName, id: string): Promise<void> {
   const mode = getDbMode();
 
+  // Log audit action
+  const logEntry: AuditLog = {
+    id: `log-${Date.now()}`,
+    action: `${collectionName.slice(0, -1).toUpperCase()}_DELETE`,
+    user: "User TPMS Enterprise",
+    module: collectionName.toUpperCase(),
+    timestamp: new Date().toISOString(),
+    details: `Menghapus data id ${id} dari ${collectionName}`
+  };
+
   if (mode === "firebase") {
     try {
       await deleteDoc(doc(db, collectionName, id));
+      await addDoc(collection(db, "auditLogs"), logEntry);
     } catch (error) {
       console.error(`Firebase delete error on ${collectionName}:`, error);
       throw error;
@@ -173,6 +278,10 @@ export async function deleteDocument(collectionName: CollectionName, id: string)
   } else {
     localData[collectionName] = (localData[collectionName] as any[]).filter(item => item.id !== id);
     saveAndNotify(collectionName);
+
+    // Save audit log too
+    localData.auditLogs.unshift(logEntry);
+    saveAndNotify("auditLogs");
   }
 }
 
@@ -180,40 +289,76 @@ export async function deleteDocument(collectionName: CollectionName, id: string)
  * Clear all local sandbox data to start blank
  */
 export function clearAllSandboxData() {
-  localData.properties = [];
+  localData.buildings = [];
+  localData.floors = [];
+  localData.units = [];
+  localData.tenants = [];
   localData.leases = [];
   localData.payments = [];
-  localData.compliance = [];
+  localData.documents = [];
+  localData.auditLogs = [];
+  localData.approvalWorkflows = [];
+  localData.notifications = [];
 
-  localStorage.setItem("sandbox_properties", JSON.stringify([]));
+  localStorage.setItem("sandbox_buildings", JSON.stringify([]));
+  localStorage.setItem("sandbox_floors", JSON.stringify([]));
+  localStorage.setItem("sandbox_units", JSON.stringify([]));
+  localStorage.setItem("sandbox_tenants", JSON.stringify([]));
   localStorage.setItem("sandbox_leases", JSON.stringify([]));
   localStorage.setItem("sandbox_payments", JSON.stringify([]));
-  localStorage.setItem("sandbox_compliance", JSON.stringify([]));
+  localStorage.setItem("sandbox_documents", JSON.stringify([]));
+  localStorage.setItem("sandbox_auditLogs", JSON.stringify([]));
+  localStorage.setItem("sandbox_approvalWorkflows", JSON.stringify([]));
+  localStorage.setItem("sandbox_notifications", JSON.stringify([]));
 
-  saveAndNotify("properties");
+  saveAndNotify("buildings");
+  saveAndNotify("floors");
+  saveAndNotify("units");
+  saveAndNotify("tenants");
   saveAndNotify("leases");
   saveAndNotify("payments");
-  saveAndNotify("compliance");
+  saveAndNotify("documents");
+  saveAndNotify("auditLogs");
+  saveAndNotify("approvalWorkflows");
+  saveAndNotify("notifications");
 }
 
 /**
  * Restore sample data to sandbox
  */
 export function restoreSampleSandboxData() {
-  localData.properties = sampleProperties;
+  localData.buildings = sampleBuildings;
+  localData.floors = sampleFloors;
+  localData.units = sampleUnits;
+  localData.tenants = sampleTenants;
   localData.leases = sampleLeases;
   localData.payments = samplePayments;
-  localData.compliance = sampleCompliance;
+  localData.documents = sampleDocuments;
+  localData.auditLogs = sampleAuditLogs;
+  localData.approvalWorkflows = sampleWorkflows;
+  localData.notifications = sampleNotifications;
 
-  localStorage.setItem("sandbox_properties", JSON.stringify(sampleProperties));
+  localStorage.setItem("sandbox_buildings", JSON.stringify(sampleBuildings));
+  localStorage.setItem("sandbox_floors", JSON.stringify(sampleFloors));
+  localStorage.setItem("sandbox_units", JSON.stringify(sampleUnits));
+  localStorage.setItem("sandbox_tenants", JSON.stringify(sampleTenants));
   localStorage.setItem("sandbox_leases", JSON.stringify(sampleLeases));
   localStorage.setItem("sandbox_payments", JSON.stringify(samplePayments));
-  localStorage.setItem("sandbox_compliance", JSON.stringify(sampleCompliance));
+  localStorage.setItem("sandbox_documents", JSON.stringify(sampleDocuments));
+  localStorage.setItem("sandbox_auditLogs", JSON.stringify(sampleAuditLogs));
+  localStorage.setItem("sandbox_approvalWorkflows", JSON.stringify(sampleWorkflows));
+  localStorage.setItem("sandbox_notifications", JSON.stringify(sampleNotifications));
 
-  saveAndNotify("properties");
+  saveAndNotify("buildings");
+  saveAndNotify("floors");
+  saveAndNotify("units");
+  saveAndNotify("tenants");
   saveAndNotify("leases");
   saveAndNotify("payments");
-  saveAndNotify("compliance");
+  saveAndNotify("documents");
+  saveAndNotify("auditLogs");
+  saveAndNotify("approvalWorkflows");
+  saveAndNotify("notifications");
 }
 
 /**
@@ -221,9 +366,7 @@ export function restoreSampleSandboxData() {
  */
 export async function seedFirestoreIfEmpty() {
   try {
-    const q = query(collection(db, "properties"));
-    
-    // Wrap getDocsFromServer in a 4-second timeout to prevent the app from hanging on initial boot
+    const q = query(collection(db, "buildings"));
     const fetchPromise = getDocsFromServer(q);
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("Koneksi ke Firestore timeout (4 detik)")), 4000)
@@ -233,8 +376,17 @@ export async function seedFirestoreIfEmpty() {
     
     if (snap.empty) {
       console.log("Firestore is empty, seeding from local assets...");
-      for (const p of sampleProperties) {
-        await setDoc(doc(db, "properties", p.id), p);
+      for (const b of sampleBuildings) {
+        await setDoc(doc(db, "buildings", b.id), b);
+      }
+      for (const f of sampleFloors) {
+        await setDoc(doc(db, "floors", f.id), f);
+      }
+      for (const u of sampleUnits) {
+        await setDoc(doc(db, "units", u.id), u);
+      }
+      for (const t of sampleTenants) {
+        await setDoc(doc(db, "tenants", t.id), t);
       }
       for (const l of sampleLeases) {
         await setDoc(doc(db, "leases", l.id), l);
@@ -242,12 +394,21 @@ export async function seedFirestoreIfEmpty() {
       for (const pay of samplePayments) {
         await setDoc(doc(db, "payments", pay.id), pay);
       }
-      for (const c of sampleCompliance) {
-        await setDoc(doc(db, "compliance", c.id), c);
+      for (const docObj of sampleDocuments) {
+        await setDoc(doc(db, "documents", docObj.id), docObj);
+      }
+      for (const audit of sampleAuditLogs) {
+        await setDoc(doc(db, "auditLogs", audit.id), audit);
+      }
+      for (const wf of sampleWorkflows) {
+        await setDoc(doc(db, "approvalWorkflows", wf.id), wf);
+      }
+      for (const notif of sampleNotifications) {
+        await setDoc(doc(db, "notifications", notif.id), notif);
       }
     }
   } catch (error) {
     console.error("Firestore seeding failed or timed out:", error);
-    throw error; // Propagate the error so the UI can notify the user gracefully
+    throw error;
   }
 }

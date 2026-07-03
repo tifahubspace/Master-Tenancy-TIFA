@@ -9,8 +9,9 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-// Middleware
-app.use(express.json());
+// Increase payload limit for base64 PDF uploads
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Initialize Gemini AI
 let aiClient: GoogleGenAI | null = null;
@@ -18,11 +19,16 @@ function getAi(): GoogleGenAI {
   if (!aiClient) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
-      console.warn("GEMINI_API_KEY is not defined. AI features will run in mock mode.");
+      console.warn("GEMINI_API_KEY is not defined. AI features will run in intelligent simulation mode.");
     }
     aiClient = new GoogleGenAI({ apiKey: key || "MOCK_KEY" });
   }
   return aiClient;
+}
+
+// Helper to determine if we are in mock mode
+function isMockMode(): boolean {
+  return !process.env.GEMINI_API_KEY;
 }
 
 // API Routes
@@ -32,214 +38,115 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// 2. Draft Compliance Notice
-app.post("/api/gemini/compliance-notice", async (req, res) => {
-  const { tenantName, unitNumber, category, severity, details } = req.body;
-
-  if (!tenantName || !category || !details) {
-    return res.status(400).json({ error: "Missing required compliance details." });
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    // Return a beautiful mock compliance notice if API Key is not set
-    const mockNotice = `**TENANCY COMPLIANCE WARNING**
-
-Date: ${new Date().toLocaleDateString()}
-To: ${tenantName} (Unit ${unitNumber || "N/A"})
-From: Master Tenancy Building Management
-Subject: Compliance Notice regarding ${category.toUpperCase()}
-
-Dear ${tenantName},
-
-We are writing to formally notify you regarding a compliance issue recorded for your unit, ${unitNumber || "your registered unit"}, on ${new Date().toLocaleDateString()}.
-
-**Details of the Occurrence:**
-${details}
-
-This issue falls under the category of **${category}** and is classified as a **${severity || "medium"}** severity violation. Please note that maintaining quiet enjoyment, common-space cleanliness, and property integrity is a strict condition of your Lease Agreement.
-
-**Required Actions:**
-1. Please remedy this situation immediately to prevent further escalation.
-2. Ensure full compliance with Section 12 of your Master Tenancy Agreement.
-3. If this violation is repeated, building management reserves the right to issue a formal warning or initiate eviction proceedings in accordance with local regulations.
-
-Should you have any questions or wish to appeal this notice, please submit a written response via your tenant portal within 48 hours.
-
-Sincerely,
-Master Tenancy Building Management Team`;
-
-    return res.json({ notice: mockNotice, isMock: true });
-  }
-
-  try {
-    const ai = getAi();
-    const prompt = `You are a professional, expert property and building manager.
-Draft an official, elegant, yet firm Tenancy Compliance Notice based on the following details:
-Tenant Name: ${tenantName}
-Unit Number: ${unitNumber || "N/A"}
-Category of Violation: ${category} (e.g. noise, maintenance, pets, unauthorized guests, late payment)
-Severity: ${severity || "medium"}
-Violation Details: ${details}
-
-The notice must include:
-1. Standard professional layout (To, From, Date, Subject).
-2. A formal explanation of the issue and why it violates standard master lease agreements.
-3. Concrete steps the tenant must take to resolve the issue.
-4. Consequences of non-compliance (e.g., formal warnings, fines, or lease termination in accordance with standard property regulations).
-5. A polite closing inviting them to contact management if there is a mistake.
-
-Format the output strictly as professional Markdown text without HTML tags. Keep it realistic, authoritative, and helpful.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-    });
-
-    res.json({ notice: response.text || "Failed to generate notice content.", isMock: false });
-  } catch (error: any) {
-    console.error("Gemini Compliance Notice Error:", error);
-    res.status(500).json({ error: "Failed to generate notice due to an internal error: " + error.message });
-  }
-});
-
-// 2.5. Extract Lease Details from Text or Filename
-app.post("/api/gemini/extract-lease", async (req, res) => {
+// 2. AI Contract Intelligence: OCR & Extraction with Confidence Scores
+app.post("/api/gemini/ocr-extract", async (req, res) => {
   const { text, fileName, fileBase64, fileMimeType } = req.body;
 
   if (!text && !fileName && !fileBase64) {
-    return res.status(400).json({ error: "No lease text, file name, or file data provided." });
+    return res.status(400).json({ error: "Mohon sediakan teks, nama file, atau file base64 kontrak." });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    // Generate intelligent mock responses based on context to avoid hardcoding static stuff when keys are missing
+  if (isMockMode()) {
+    // Generate an intelligent mock response based on filename/content
     const textLower = (text || "").toLowerCase();
     const fileLower = (fileName || "").toLowerCase();
-    
-    let tenantName = "Rizky Pratama";
-    let tenantEmail = "rizky.pratama@mandalagroup.id";
-    let monthlyRent = "14500000";
-    let securityDeposit = "29000000";
-    let unitNumber = "B-201";
-    let startDate = "2026-07-01";
-    let endDate = "2027-07-01";
-    let billingDay = 5;
 
-    if (fileLower.includes("medidata") || textLower.includes("medidata")) {
+    let tenantName = "PT Telekomunikasi Selular (Telkomsel)";
+    let tenantEmail = "procurement@telkomsel.co.id";
+    let buildingName = "TIFA Building";
+    let unitNumber = "Suite 302";
+    let floorNumber = "03";
+    let monthlyRent = 88000000;
+    let securityDeposit = 176000000;
+    let billingDay = 5;
+    let startDate = "2026-08-01";
+    let endDate = "2028-07-31";
+
+    if (fileLower.includes("kopi") || textLower.includes("kopi") || fileLower.includes("kenangan")) {
+      tenantName = "PT Kopi Jiwa Sejahtera";
+      tenantEmail = "retail.property@kopikenangan.id";
+      buildingName = "Alamanda";
+      unitNumber = "Suite 101";
+      floorNumber = "01";
+      monthlyRent = 52500000;
+      securityDeposit = 105000000;
+      billingDay = 10;
+      startDate = "2026-03-01";
+      endDate = "2027-02-28";
+    } else if (fileLower.includes("medidata") || textLower.includes("medidata")) {
       tenantName = "PT Medidata Indonesia";
       tenantEmail = "finance@medidata.co.id";
-      monthlyRent = "22500000";
-      securityDeposit = "45000000";
-      unitNumber = "Office-304";
-      startDate = "2026-07-01";
-      endDate = "2027-07-01";
-      billingDay = 25;
-    } else if (textLower.includes("joko") || fileLower.includes("joko")) {
-      tenantName = "Joko Widodo";
-      tenantEmail = "joko.widodo@outlook.com";
-      monthlyRent = "8500000";
-      securityDeposit = "8500000";
-      unitNumber = "A-102";
-      startDate = "2026-08-01";
-      endDate = "2027-08-01";
-      billingDay = 1;
-    } else if (textLower.includes("budi") || fileLower.includes("budi")) {
-      tenantName = "Budi Santoso";
-      tenantEmail = "budi.santoso@yahoo.com";
-      monthlyRent = "12000000";
-      securityDeposit = "24000000";
-      unitNumber = "C-405";
-      startDate = "2026-09-01";
-      endDate = "2027-09-01";
-      billingDay = 10;
-    } else if (textLower.includes("ani") || fileLower.includes("ani") || textLower.includes("anisa") || fileLower.includes("anisa")) {
-      tenantName = "Anisa Rahmawati";
-      tenantEmail = "anisa.rahma@gmail.com";
-      monthlyRent = "9500000";
-      securityDeposit = "19000000";
-      unitNumber = "B-303";
-      startDate = "2026-07-15";
-      endDate = "2027-07-15";
+      buildingName = "TIFA Building";
+      unitNumber = "Suite 201";
+      floorNumber = "02";
+      monthlyRent = 63000000;
+      securityDeposit = 126000000;
+      billingDay = 5;
+      startDate = "2026-01-01";
+      endDate = "2027-12-31";
+    } else if (fileLower.includes("astra") || textLower.includes("astra")) {
+      tenantName = "PT Astra International Tbk";
+      tenantEmail = "facilities.procurement@astra.co.id";
+      buildingName = "Ventura";
+      unitNumber = "Suite 201";
+      floorNumber = "02";
+      monthlyRent = 60000000;
+      securityDeposit = 120000000;
       billingDay = 15;
-    } else {
-      // Dynamic filename extractor
-      const fileUnitMatch = fileLower.match(/(?:#|unit[-_]?|u[-_]?|suite[-_]?)([0-9a-z\-]+)/i);
-      if (fileUnitMatch) {
-        unitNumber = fileUnitMatch[1].toUpperCase();
-      }
-      
-      const fileCleanName = (fileName || "")
-        .replace(/\.[^/.]+$/, "") // remove extension
-        .replace(/^[\d\s-_]+/g, "") // remove leading numbers
-        .split(/[#_]/)[0] // take everything before # or _
-        .trim();
-        
-      if (fileCleanName && fileCleanName.length > 3 && !fileCleanName.toLowerCase().includes("lease") && !fileCleanName.toLowerCase().includes("terms")) {
-        tenantName = fileCleanName;
-        tenantEmail = `${tenantName.toLowerCase().replace(/[^a-z0-9]/g, "")}@gmail.com`;
-      }
-
-      // Dynamic fallback extraction based on whatever terms might be parsed via regexes from input text
-      const rentMatch = textLower.match(/(?:rent|sewa|harga|idr|rp)\s*[:=]?\s*([\d\.,]+)/i);
-      if (rentMatch) {
-        monthlyRent = rentMatch[1].replace(/[\.,]/g, "");
-        securityDeposit = String(Number(monthlyRent) * 2);
-      }
-      const unitMatch = textLower.match(/(?:unit|no|nomor)\s*[:=]?\s*([a-z0-9\-]+)/i);
-      if (unitMatch) {
-        unitNumber = unitMatch[1].toUpperCase();
-      }
-      const nameMatch = textLower.match(/(?:name|nama|tenant|penyewa)\s*[:=]?\s*([a-z\s]{3,25})/i);
-      if (nameMatch) {
-        tenantName = nameMatch[1].trim().split("\n")[0];
-        tenantEmail = `${tenantName.toLowerCase().replace(/\s+/g, ".")}@gmail.com`;
-      }
+      startDate = "2026-02-15";
+      endDate = "2027-02-14";
     }
 
+    // Return structured data with confidence scores
     return res.json({
-      tenantName,
-      tenantEmail,
-      unitNumber,
-      monthlyRent,
-      securityDeposit,
-      billingDay,
-      startDate,
-      endDate,
+      extracted: {
+        tenantName: { value: tenantName, confidence: 97 },
+        tenantEmail: { value: tenantEmail, confidence: 91 },
+        buildingName: { value: buildingName, confidence: 95 },
+        unitNumber: { value: unitNumber, confidence: 96 },
+        floorNumber: { value: floorNumber, confidence: 89 },
+        monthlyRent: { value: monthlyRent, confidence: 99 },
+        securityDeposit: { value: securityDeposit, confidence: 98 },
+        billingDay: { value: billingDay, confidence: 93 },
+        startDate: { value: startDate, confidence: 95 },
+        endDate: { value: endDate, confidence: 95 }
+      },
       isMock: true
     });
   }
 
   try {
     const ai = getAi();
-    const prompt = `You are an AI assistant designed to parse rental/lease agreement documents, images, or text descriptions.
-Extract the following information from the provided lease content (text, file, or image):
-1. Full Name of Tenant (tenantName)
-2. Email of Tenant (tenantEmail) - if not found in the document, generate a professional one based on their name.
-3. Unit Number (unitNumber) - e.g., "A-101", "B-205". Default to "A-101" if not found.
-4. Monthly Rent (monthlyRent) - extract the number only, remove any currency symbols, commas, dots, or suffixes.
-5. Security Deposit (securityDeposit) - extract the number only. If not specified, default to the monthly rent amount.
-6. Billing Day of Month (billingDay) - extract as a number (1-31). Default to 1.
-7. Start Date (startDate) - Format: YYYY-MM-DD. Default to "2026-07-01".
-8. End Date (endDate) - Format: YYYY-MM-DD. Default to "2027-07-01".
+    const prompt = `You are a real-estate legal AI trained in Indonesian commercial lease agreements.
+Parse the lease agreement document. For each of the following fields, extract its value and assign a realistic "confidence" score (percentage 0 to 100) based on how clearly and explicitly it was stated in the text or image.
 
-File Name: ${fileName || "document"}
+Fields to extract:
+1. tenantName: Full business name or legal entity (e.g., "PT Telekomunikasi Indonesia")
+2. tenantEmail: Contact email or generate a professional one based on entity (e.g. "procurement@telkom.co.id")
+3. buildingName: Match exactly with one of these buildings: "Ventura", "TIFA Building", "Alamanda", "GBS Surabaya".
+4. unitNumber: The suite or room number (e.g. "Suite 201")
+5. floorNumber: The floor number as string (e.g., "01", "02", "12")
+6. monthlyRent: Monthly rent in IDR (extract number only)
+7. securityDeposit: Security deposit in IDR (extract number only)
+8. billingDay: The day of month rent is due (extract 1 to 31, default to 5)
+9. startDate: Lease start date in YYYY-MM-DD
+10. endDate: Lease end date in YYYY-MM-DD
 
-Return the output STRICTLY as a valid JSON object with the following keys and no extra characters or markdown wrapping like \`\`\`json:
+Return ONLY a valid JSON object matching the schema below, without markdown formatting or code blocks:
 {
-  "tenantName": "...",
-  "tenantEmail": "...",
-  "unitNumber": "...",
-  "monthlyRent": "...",
-  "securityDeposit": "...",
-  "billingDay": 1,
-  "startDate": "YYYY-MM-DD",
-  "endDate": "YYYY-MM-DD"
+  "tenantName": { "value": "...", "confidence": 98 },
+  "tenantEmail": { "value": "...", "confidence": 90 },
+  "buildingName": { "value": "...", "confidence": 95 },
+  "unitNumber": { "value": "...", "confidence": 96 },
+  "floorNumber": { "value": "...", "confidence": 88 },
+  "monthlyRent": { "value": 15000000, "confidence": 99 },
+  "securityDeposit": { "value": 30000000, "confidence": 95 },
+  "billingDay": { "value": 5, "confidence": 90 },
+  "startDate": { "value": "2026-01-01", "confidence": 94 },
+  "endDate": { "value": "2027-12-31", "confidence": 94 }
 }`;
 
     const contents: any[] = [];
-
-    // If we have base64 file data, send it to Gemini as inlineData!
     if (fileBase64 && fileMimeType) {
       contents.push({
         inlineData: {
@@ -251,142 +158,219 @@ Return the output STRICTLY as a valid JSON object with the following keys and no
 
     if (text) {
       contents.push({
-        text: `Text Content of document:\n${text}\n\n${prompt}`
+        text: `Text contents of the contract:\n${text}\n\n${prompt}`
       });
     } else {
-      contents.push({
-        text: prompt
-      });
+      contents.push({ text: prompt });
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: contents,
     });
 
-    const contentText = response.text || "";
-    // Clean JSON wrapping
-    const cleanJsonStr = contentText.replace(/```json/gi, "").replace(/```/gi, "").trim();
-    const result = JSON.parse(cleanJsonStr);
-    res.json(result);
+    const cleanText = (response.text || "").replace(/```json/gi, "").replace(/```/gi, "").trim();
+    const parsed = JSON.parse(cleanText);
+    res.json({ extracted: parsed, isMock: false });
   } catch (error: any) {
-    console.error("Gemini Lease Extraction Error:", error);
-    res.status(500).json({ error: "Failed to extract lease details: " + error.message });
+    console.error("OCR Extraction Error:", error);
+    res.status(500).json({ error: "Gagal mengekstraksi data kontrak otomatis: " + error.message });
   }
 });
 
-// 3. Lease Smart Analyzer and Recommendations
-app.post("/api/gemini/analyze-lease", async (req, res) => {
-  const { propertyName, tenantName, monthlyRent, securityDeposit, startDate, endDate, billingDay } = req.body;
+// 3. AI Contract Comparison
+app.post("/api/gemini/compare-contracts", async (req, res) => {
+  const { contractA, contractB } = req.body;
 
-  if (!propertyName || !tenantName || !monthlyRent) {
-    return res.status(400).json({ error: "Missing lease details to analyze." });
+  if (!contractA || !contractB) {
+    return res.status(400).json({ error: "Mohon sediakan kedua versi kontrak yang akan dibandingkan." });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    const mockAnalysis = `### 📋 Lease Agreement Smart Analysis
+  if (isMockMode()) {
+    const mockReport = `### 🔍 AI Contract Comparison Report (TPMS Enterprise Intel)
 
-#### **Financial Risk Assessment**
-- **Monthly Rent:** $${monthlyRent}
-- **Security Deposit:** $${securityDeposit || "Not Specified"} (Recommended: 1.5x - 2x rent, which would be $${(Number(monthlyRent) * 1.5).toFixed(2)})
-- **Billing Day:** Day ${billingDay || 1} of the month.
+Berikut adalah hasil perbandingan otomatis antara **Kontrak Versi 1 (Asli)** dan **Kontrak Versi 2 (Revisi)**:
 
-#### **Compliance & Rule Recommendations**
-1. **Security Deposit Check:** The security deposit provided is adequate, but ensure it is stored in an escrow account complying with local tenancy laws.
-2. **Late Fee Clause:** Standard tenancy laws suggest a grace period of 3-5 days. If payment is not received by day ${Number(billingDay || 1) + 5}, a standard 5% late fee is highly recommended.
-3. **Insurance Clause:** Recommend requiring the tenant to carry **Renter's Insurance (minimum $100k liability)** and provide proof before moving in.
-4. **Maintenance Responsibility:** Clearly delineate minor maintenance (tenant's duty, e.g., bulbs, filters, up to $100) vs. major maintenance (landlord's duty).
+#### **1. Perubahan Finansial (Sewa & Deposit)**
+*   **Harga Sewa Per Bulan:**
+    *   *Versi 1:* Rp 60.000.000 / bulan
+    *   *Versi 2 (Revisi):* **Rp 65.000.000 / bulan** (Mengalami kenaikan sebesar **Rp 5.000.000 / 8.33%**)
+*   **Security Deposit:**
+    *   *Versi 1:* Rp 120.000.000 (Setara 2 bulan sewa)
+    *   *Versi 2:* **Rp 130.000.000** (Disesuaikan mengikuti harga sewa baru, aman)
 
-*Disclaimer: This is an AI-generated advisory notice. Please consult a legal professional before finalizing formal lease agreements.*`;
-    return res.json({ analysis: mockAnalysis, isMock: true });
+#### **2. Perubahan Klausul Hukum & Operasional**
+*   **Grace Period Pembayaran (Pasal 4.2):**
+    *   *Versi 1:* Pembayaran dilakukan paling lambat tanggal 5 setiap bulan.
+    *   *Versi 2:* Ditambahkan klausul **toleransi keterlambatan hingga tanggal 10 setiap bulan** tanpa dikenakan denda (Menguntungkan Tenant, perlu review manajemen).
+*   **Tanggung Jawab Pemeliharaan AC (Pasal 7.1):**
+    *   *Versi 1:* Pemeliharaan rutin AC sepenuhnya ditanggung oleh Pengelola Gedung.
+    *   *Versi 2:* Ditambahkan batas maksimal beban perbaikan sebesar **Rp 2.500.000 per unit** yang harus ditanggung Tenant sebelum sisa biaya ditanggung Pengelola (Perubahan Material).
+
+#### **3. Kesimpulan & Rekomendasi Hukum (Legal Insight)**
+*   **Tingkat Risiko Perubahan:** 🟡 **Medium Risk**
+*   **Rekomendasi:** Kenaikan harga sewa menguntungkan perusahaan pengelola, namun klausul pergeseran biaya pemeliharaan AC senilai Rp 2.500.000 ke Tenant sangat baik untuk mengurangi biaya operasional gedung. Disarankan menyetujui draf revisi ini.`;
+    return res.json({ comparison: mockReport, isMock: true });
   }
 
   try {
     const ai = getAi();
-    const prompt = `You are a master real estate legal advisor and property risk manager.
-Analyze the following lease agreement details and provide a professional risk assessment and recommended protective clauses:
-Property Name: ${propertyName}
-Tenant Name: ${tenantName}
-Monthly Rent: $${monthlyRent}
-Security Deposit: $${securityDeposit || "N/A"}
-Start Date: ${startDate}
-End Date: ${endDate}
-Billing Day: Day ${billingDay || 1} of the month
+    const prompt = `You are an expert commercial real-estate attorney. Compare the two versions of the lease contract text provided below.
+Identify and highlight any differences in:
+1. Financial terms (rent price, security deposit, billing day, penalties)
+2. Term dates (start, end, renewal notice window)
+3. Operational clauses (maintenance caps, sub-leasing, tenant responsibilities)
+4. Legal clauses (liability, termination notice, force majeure)
 
-Provide your analysis structured with clean Markdown:
-1. **Financial Assessment**: Review if the deposit is appropriate (typically 1.5x to 2x rent). Review payment risk.
-2. **Key Protective Clauses**: Recommend 3-4 standard, robust clauses (e.g., late fees, renter's insurance, maintenance limits, subletting).
-3. **Compliance Milestones**: Mention compliance checks to monitor (e.g. check-in inspection, safety certifications).
-4. **Risk Rating**: Assign a low, medium, or high operational risk rating with a brief justification.
+Structure your report in elegant Markdown in Bahasa Indonesia. Rate the changes as Low, Medium, or High risk for the property owner/management company, and give a clear legal recommendation on whether to sign or negotiate.
 
-Ensure the tone is analytical, expert, and highly practical. Formatting must be clear Markdown.`;
+Contract A (Original):
+${contractA}
+
+Contract B (Revised):
+${contractB}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: prompt,
     });
 
-    res.json({ analysis: response.text || "Failed to generate lease analysis.", isMock: false });
+    res.json({ comparison: response.text || "Gagal membandingkan kontrak.", isMock: false });
   } catch (error: any) {
-    console.error("Gemini Lease Analysis Error:", error);
-    res.status(500).json({ error: "Failed to analyze lease due to an internal error: " + error.message });
+    console.error("Contract Comparison Error:", error);
+    res.status(500).json({ error: "Gagal membandingkan kontrak: " + error.message });
   }
 });
 
-// 4. Multi-Tenant Portfolio AI Insights
-app.post("/api/gemini/portfolio-insights", async (req, res) => {
-  const { leases, payments, compliance } = req.body;
+// 4. AI Assistant Chat: Fully Contextual Understanding of Building Operations
+app.post("/api/gemini/assistant-chat", async (req, res) => {
+  const { message, history, dataContext } = req.body;
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    const mockInsights = `### 🏢 Real-Time Portfolio Insights
+  if (!message) {
+    return res.status(400).json({ error: "Mohon masukkan pesan Anda." });
+  }
 
-#### **Financial Status**
-- **Outstanding Balance:** Healthy overall. 
-- **Late Payments:** Currently minor. Keep an eye on late paying patterns to avoid rent arrears.
+  const contextStr = JSON.stringify({
+    buildings: dataContext?.buildings?.map((b: any) => ({ name: b.name, address: b.address, totalFloors: b.totalFloors, totalUnits: b.totalUnits })),
+    units: dataContext?.units?.map((u: any) => ({ building: u.buildingName, floor: u.floorNumber, number: u.unitNumber, area: u.areaSqm, rentPerSqm: u.rentPerSqm, status: u.status })),
+    leases: dataContext?.leases?.map((l: any) => ({ tenant: l.tenantName, building: l.buildingName, unit: l.unitNumber, rent: l.monthlyRent, start: l.startDate, end: l.endDate, status: l.status })),
+    payments: dataContext?.payments?.map((p: any) => ({ tenant: p.tenantName, building: p.buildingName, amount: p.amount, status: p.status, dueDate: p.dueDate }))
+  });
 
-#### **Tenant Compliance Radar**
-- **Noise & Maintenance Complaints:** Resolved compliance rate is high. 
-- **Recommendation:** Implement a quarterly proactive property walk-through to prevent minor compliance issues from escalating into expensive maintenance problems.
+  if (isMockMode()) {
+    // Generate intelligent responses without key
+    const msg = message.toLowerCase();
+    let reply = "";
 
-#### **Management Actions Checklist**
-1. 📞 Contact tenants with overdue payments immediately.
-2. 📝 Draft warning letters for escalating noise or pet violations.
-3. 🔔 Prepare renewal notices for leases expiring within the next 60 days.`;
+    if (msg.includes("unit kosong") || msg.includes("kosong") || msg.includes("empty")) {
+      reply = `### 🏢 Daftar Unit Kosong (Available Spaces)
 
-    return res.json({ insights: mockInsights, isMock: true });
+Saat ini terdapat beberapa unit kosong premium yang siap ditawarkan kepada calon tenant baru:
+
+1.  **TIFA Building (Suite 102)**
+    *   **Lantai:** 01
+    *   **Luas:** 120 m²
+    *   **Harga Sewa:** Rp 200.000 / m² / bulan (Estimasi: Rp 24.000.000 / bulan)
+    *   **Kondisi:** Sangat cocok untuk cabang retail premium atau layanan perbankan.
+2.  **TIFA Building (Suite 202)**
+    *   **Lantai:** 02
+    *   **Luas:** 280 m²
+    *   **Harga Sewa:** Rp 180.000 / m² / bulan (Estimasi: Rp 50.400.000 / bulan)
+    *   **Kondisi:** Sudah berkarpet, dilengkapi partisi ruangan rapat eksekutif.
+3.  **Ventura (Suite 202)**
+    *   **Lantai:** 02
+    *   **Luas:** 220 m²
+    *   **Harga Sewa:** Rp 200.000 / m² / bulan (Estimasi: Rp 44.000.000 / bulan)
+    *   **Kondisi:** Ruangan bare/shell, siap didekorasi sesuai kebutuhan tenant.
+4.  **Alamanda (Suite 201)**
+    *   **Lantai:** 02
+    *   **Luas:** 400 m²
+    *   **Harga Sewa:** Rp 210.000 / m² / bulan (Estimasi: Rp 84.000.000 / bulan)
+    *   **Kondisi:** Ruang kantor luas dengan pemandangan jalan raya utama kota (city view).
+
+**Rekomendasi AI:** Hubungi tim marketing Anda untuk menawarkan **Alamanda Suite 201** kepada prospek korporasi besar karena luas m²-nya yang prestisius dan lokasinya yang strategis.`;
+    } else if (msg.includes("habis") || msg.includes("berakhir") || msg.includes("expire") || msg.includes("contract")) {
+      reply = `### ⚠️ Analisis Kontrak Segera Berakhir
+
+Berdasarkan data operasional TPMS Enterprise, berikut adalah kontrak aktif yang akan segera berakhir dalam 12 bulan ke depan:
+
+1.  **Astra International - Logistics Dept**
+    *   **Gedung:** Ventura, Suite 201
+    *   **Tanggal Berakhir:** 14 Februari 2027 (~225 hari lagi)
+    *   **Sewa Bulanan:** Rp 60.000.000 / bulan
+    *   **Status Review:** Perlu segera mengirimkan surat pemberitahuan opsi perpanjangan dalam 30 hari ke depan.
+2.  **PT Kopi Jiwa Sejahtera (Kopi Kenangan)**
+    *   **Gedung:** Alamanda, Suite 101
+    *   **Tanggal Berakhir:** 28 Februari 2027 (~240 hari lagi)
+    *   **Sewa Bulanan:** Rp 52.500.000 / bulan
+    *   **Status Review:** Hubungan tenant sangat baik, rekomendasi perpanjangan dengan opsi penyesuaian harga sewa 5%.
+
+**Rekomendasi Tindakan:** Saya sarankan Anda membuat draf pemberitahuan perpanjangan sewa otomatis untuk **Astra International** menggunakan modul *Lease Management* untuk mengunci komitmen mereka lebih awal.`;
+    } else if (msg.includes("pendapatan") || msg.includes("revenue") || msg.includes("laporan") || msg.includes("okupansi")) {
+      reply = `### 📊 Laporan Ringkas Okupansi & Keuangan Portofolio
+
+Berikut adalah rangkuman analisis operasional real-time untuk 4 gedung utama:
+
+#### **1. Tingkat Okupansi Gedung**
+*   **TIFA Building:** 50% Occupied (2 leased, 2 empty, 1 maintenance)
+*   **Ventura:** 66% Occupied (2 leased, 1 empty)
+*   **Alamanda:** 50% Occupied (1 leased, 1 empty)
+*   **GBS Surabaya:** 100% Occupied (1 leased)
+*   **Rata-rata Okupansi Portofolio:** **61.5%**
+
+#### **2. Estimasi Pendapatan Sewa Bulanan**
+*   **TIFA Building:** Rp 96.000.000
+*   **Ventura:** Rp 60.000.000
+*   **Alamanda:** Rp 52.500.000
+*   **GBS Surabaya:** Rp 24.000.000 (Estimasi)
+*   **Total Pendapatan Berjalan:** **Rp 232.500.000 / bulan**
+
+#### **3. Piutang & Keterlambatan Pembayaran (Overdue Alerts)**
+*   Terdapat **1 tagihan overdue** dari **PT Medidata Indonesia** sebesar **Rp 63.000.000** (Jatuh tempo 5 Juli 2026).
+*   *Tindakan:* Tim Finance direkomendasikan mengirimkan Surat Peringatan Tagihan 1 (SP1) otomatis besok pagi.`;
+    } else {
+      reply = `### 👋 Halo! Saya TPMS AI Enterprise Assistant.
+
+Saya dapat membantu Anda mengelola dan menanyakan seluruh operasional 4 gedung Anda secara terintegrasi (**Ventura**, **TIFA Building**, **Alamanda**, dan **GBS Surabaya**).
+
+**Beberapa hal yang bisa Anda tanyakan kepada saya:**
+*   *"Tunjukkan daftar unit kosong di TIFA Building"*
+*   *"Apakah ada kontrak sewa tenant yang segera berakhir?"*
+*   *"Berikan analisis pendapatan sewa dan okupansi bulan ini"*
+*   *"Tolong carikan detail kontak tenant PT Medidata Indonesia"*
+
+Silakan ketikkan pertanyaan operasional Anda di bawah!`;
+    }
+
+    return res.json({ reply, isMock: true });
   }
 
   try {
     const ai = getAi();
-    const summaryPrompt = `You are the executive advisor for a real-estate investment trust and residential building portfolio.
-Review the following live building summary metrics:
-Total Active Leases: ${leases?.length || 0}
-Total Payments Tracked: ${payments?.length || 0}
-Total Compliance Issues: ${compliance?.length || 0}
+    const prompt = `You are TPMS AI Enterprise Assistant, an advanced, professional AI Property Specialist managing a portfolio of four premium commercial buildings in Indonesia: Ventura, TIFA Building, Alamanda, and GBS Surabaya.
+You have real-time access to the building management database context below.
 
-Detailed Items:
-Leases List: ${JSON.stringify((leases || []).map((l: any) => ({ tenant: l.tenantName, status: l.status, rent: l.monthlyRent, compliance: l.complianceStatus })))}
-Payments List: ${JSON.stringify((payments || []).map((p: any) => ({ tenant: p.tenantName, amount: p.amount, status: p.status, dueDate: p.dueDate })))}
-Compliance List: ${JSON.stringify((compliance || []).map((c: any) => ({ tenant: c.tenantName, category: c.category, severity: c.severity, status: c.status })))}
+DATABASE CONTEXT:
+${contextStr}
 
-Generate a brief, highly actionable strategic portfolio brief in Markdown format:
-1. **Billing & Revenue Health**: Assess real-time rental recovery, identify late or partial payment hotspots.
-2. **Tenant Compliance Alert**: Highlight any critical or high-severity compliance incidents (e.g. noise, unauthorized occupancy) that need urgent management attention.
-3. **Immediate Operational Interventions**: Suggest 3 specific, priority-ranked tasks for the property manager today (e.g., follow-up calls, notice delivery).
+INSTRUCTIONS:
+1. Answer the user's natural language question accurately based ONLY on the provided context.
+2. Structure your reply beautifully using Markdown with clear headings, bullet points, and tables.
+3. Keep the tone executive, helpful, precise, and authoritative.
+4. Reply in Bahasa Indonesia (unless the query is strictly in English).
+5. If the user asks for something not in the database, guide them politely on how to input it or explain what data is available.
 
-Keep the summary tightly focused, practical, and punchy. No generic fluff.`;
+User Query: "${message}"`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: summaryPrompt,
+      model: "gemini-3.5-flash",
+      contents: prompt,
     });
 
-    res.json({ insights: response.text || "Failed to generate portfolio insights.", isMock: false });
+    res.json({ reply: response.text || "Gagal memproses pesan AI Assistant.", isMock: false });
   } catch (error: any) {
-    console.error("Gemini Portfolio Insights Error:", error);
-    res.status(500).json({ error: "Failed to generate portfolio insights: " + error.message });
+    console.error("AI Assistant Chat Error:", error);
+    res.status(500).json({ error: "Gagal memproses obrolan AI Assistant: " + error.message });
   }
 });
 
@@ -401,7 +385,6 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    // Serve index.html for all client-side SPA routes
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
