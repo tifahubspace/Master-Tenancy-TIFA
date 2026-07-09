@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   Upload, 
   FileText, 
@@ -57,6 +57,8 @@ export default function AIContractIntelligence({
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState<any | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states for the manual review step inside the popup modal
   const [reviewForm, setReviewForm] = useState({
@@ -75,7 +77,7 @@ export default function AIContractIntelligence({
     agentName: "Internal Marketing Team"
   });
 
-  const handleUploadClick = async (textToUse: string, fileName: string) => {
+  const handleUploadClick = async (textToUse: string, fileName: string, fileBase64?: string, fileMimeType?: string) => {
     setLoading(true);
     setSavedSuccess(false);
     setExtractedData(null);
@@ -86,7 +88,9 @@ export default function AIContractIntelligence({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: textToUse,
-          fileName: fileName
+          fileName: fileName,
+          fileBase64: fileBase64,
+          fileMimeType: fileMimeType
         })
       });
 
@@ -133,6 +137,43 @@ export default function AIContractIntelligence({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0]);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target?.result as string;
+      const commaIndex = base64Data.indexOf(",");
+      const rawBase64 = commaIndex !== -1 ? base64Data.substring(commaIndex + 1) : base64Data;
+      
+      await handleUploadClick("", file.name, rawBase64, file.type);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -263,9 +304,29 @@ export default function AIContractIntelligence({
               1. Sumber Dokumen Kontrak Sewa
             </h3>
             
-            <div className="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition bg-slate-950/40">
-              <Upload className="w-8 h-8 text-slate-500 mb-2 animate-bounce" />
-              <p className="font-sans text-xs text-slate-300 font-semibold">Unggah File Kontrak PDF / Scan</p>
+            <div 
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-6 flex flex-col items-center justify-center text-center cursor-pointer transition ${
+                dragActive 
+                  ? "border-cyan-400 bg-cyan-950/20" 
+                  : "border-slate-800 hover:border-cyan-500/50 bg-slate-950/40"
+              }`}
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden" 
+              />
+              <Upload className={`w-8 h-8 text-slate-500 mb-2 ${dragActive ? "animate-pulse text-cyan-400" : "animate-bounce"}`} />
+              <p className="font-sans text-xs text-slate-300 font-semibold">
+                {dragActive ? "Lepaskan file di sini" : "Unggah File Kontrak PDF / Scan"}
+              </p>
               <p className="font-sans text-[10px] text-slate-500 mt-1">Sistem mendukung format PDF, JPG, PNG hingga 50MB</p>
             </div>
 
