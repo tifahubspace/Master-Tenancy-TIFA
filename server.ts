@@ -21,7 +21,14 @@ function getAi(): GoogleGenAI {
     if (!key) {
       console.warn("GEMINI_API_KEY is not defined. AI features will run in intelligent simulation mode.");
     }
-    aiClient = new GoogleGenAI({ apiKey: key || "MOCK_KEY" });
+    aiClient = new GoogleGenAI({ 
+      apiKey: key || "MOCK_KEY",
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        }
+      }
+    });
   }
   return aiClient;
 }
@@ -146,9 +153,9 @@ Return ONLY a valid JSON object matching the schema below, without markdown form
   "endDate": { "value": "2027-12-31", "confidence": 94 }
 }`;
 
-    const contents: any[] = [];
+    const parts: any[] = [];
     if (fileBase64 && fileMimeType) {
-      contents.push({
+      parts.push({
         inlineData: {
           mimeType: fileMimeType,
           data: fileBase64
@@ -157,16 +164,16 @@ Return ONLY a valid JSON object matching the schema below, without markdown form
     }
 
     if (text) {
-      contents.push({
+      parts.push({
         text: `Text contents of the contract:\n${text}\n\n${prompt}`
       });
     } else {
-      contents.push({ text: prompt });
+      parts.push({ text: prompt });
     }
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
-      contents: contents,
+      contents: { parts: parts },
     });
 
     const cleanText = (response.text || "").replace(/```json/gi, "").replace(/```/gi, "").trim();

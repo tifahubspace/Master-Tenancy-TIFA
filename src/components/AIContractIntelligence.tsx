@@ -94,11 +94,12 @@ export default function AIContractIntelligence({
         })
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error("Gagal mengekstrak data dari AI Server.");
+        throw new Error(result.error || "Gagal mengekstrak data dari AI Server.");
       }
 
-      const result = await response.json();
       const data = result.extracted;
 
       // Find matching building or unit
