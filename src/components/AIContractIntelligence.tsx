@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { addDocument } from "../lib/db";
 import { Building, Tenant, Unit, Document, PortfolioStats } from "../types";
+import { getApiUrl } from "../lib/api";
 
 interface AIContractIntelligenceProps {
   buildings: Building[];
@@ -83,7 +84,7 @@ export default function AIContractIntelligence({
     setExtractedData(null);
 
     try {
-      const response = await fetch("/api/gemini/ocr-extract", {
+      const response = await fetch(getApiUrl("/api/gemini/ocr-extract"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

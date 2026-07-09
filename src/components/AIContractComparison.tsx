@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ArrowLeftRight, FileText, Sparkles, RefreshCw, AlertTriangle, Check, ShieldAlert } from "lucide-react";
+import { getApiUrl } from "../lib/api";
 
 const COMPARISON_TEMPLATES = [
   {
@@ -33,7 +34,7 @@ export default function AIContractComparison() {
     setReport(null);
 
     try {
-      const response = await fetch("/api/gemini/compare-contracts", {
+      const response = await fetch(getApiUrl("/api/gemini/compare-contracts"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { MessageSquare, Send, Bot, User, Sparkles, X, ChevronDown, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { getApiUrl } from "../lib/api";
 
 interface AIAssistantProps {
   buildings: any[];
@@ -65,7 +66,7 @@ export default function AIAssistant({
     setLoading(true);
 
     try {
-      const response = await fetch("/api/gemini/assistant-chat", {
+      const response = await fetch(getApiUrl("/api/gemini/assistant-chat"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

@@ -13,6 +13,17 @@ const PORT = 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Enable CORS for external hosting compatibility (e.g. Vercel)
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Initialize Gemini AI
 let aiClient: GoogleGenAI | null = null;
 function getAi(): GoogleGenAI {
@@ -53,8 +64,8 @@ app.post("/api/gemini/ocr-extract", async (req, res) => {
     return res.status(400).json({ error: "Mohon sediakan teks, nama file, atau file base64 kontrak." });
   }
 
-  if (isMockMode()) {
-    // Generate an intelligent mock response based on filename/content
+  // Define fallback mock data generator
+  const getMockOcr = () => {
     const textLower = (text || "").toLowerCase();
     const fileLower = (fileName || "").toLowerCase();
 
@@ -104,20 +115,23 @@ app.post("/api/gemini/ocr-extract", async (req, res) => {
       endDate = "2027-02-14";
     }
 
-    // Return structured data with confidence scores
+    return {
+      tenantName: { value: tenantName, confidence: 97 },
+      tenantEmail: { value: tenantEmail, confidence: 91 },
+      buildingName: { value: buildingName, confidence: 95 },
+      unitNumber: { value: unitNumber, confidence: 96 },
+      floorNumber: { value: floorNumber, confidence: 89 },
+      monthlyRent: { value: monthlyRent, confidence: 99 },
+      securityDeposit: { value: securityDeposit, confidence: 98 },
+      billingDay: { value: billingDay, confidence: 93 },
+      startDate: { value: startDate, confidence: 95 },
+      endDate: { value: endDate, confidence: 95 }
+    };
+  };
+
+  if (isMockMode()) {
     return res.json({
-      extracted: {
-        tenantName: { value: tenantName, confidence: 97 },
-        tenantEmail: { value: tenantEmail, confidence: 91 },
-        buildingName: { value: buildingName, confidence: 95 },
-        unitNumber: { value: unitNumber, confidence: 96 },
-        floorNumber: { value: floorNumber, confidence: 89 },
-        monthlyRent: { value: monthlyRent, confidence: 99 },
-        securityDeposit: { value: securityDeposit, confidence: 98 },
-        billingDay: { value: billingDay, confidence: 93 },
-        startDate: { value: startDate, confidence: 95 },
-        endDate: { value: endDate, confidence: 95 }
-      },
+      extracted: getMockOcr(),
       isMock: true
     });
   }
@@ -180,8 +194,12 @@ Return ONLY a valid JSON object matching the schema below, without markdown form
     const parsed = JSON.parse(cleanText);
     res.json({ extracted: parsed, isMock: false });
   } catch (error: any) {
-    console.error("OCR Extraction Error:", error);
-    res.status(500).json({ error: "Gagal mengekstraksi data kontrak otomatis: " + error.message });
+    console.error("Gemini OCR Extraction Error, falling back to Sandbox mode:", error);
+    res.json({
+      extracted: getMockOcr(),
+      isMock: true,
+      warning: "Kunci API Gemini tidak valid atau kuota habis. Sistem beralih ke Mode Sandbox Cerdas agar draf dokumen tetap bisa dianalisis dengan baik."
+    });
   }
 });
 
@@ -193,8 +211,8 @@ app.post("/api/gemini/compare-contracts", async (req, res) => {
     return res.status(400).json({ error: "Mohon sediakan kedua versi kontrak yang akan dibandingkan." });
   }
 
-  if (isMockMode()) {
-    const mockReport = `### 🔍 AI Contract Comparison Report (TPMS Enterprise Intel)
+  const getMockComparison = () => {
+    return `### 🔍 AI Contract Comparison Report (TPMS Enterprise Intel)
 
 Berikut adalah hasil perbandingan otomatis antara **Kontrak Versi 1 (Asli)** dan **Kontrak Versi 2 (Revisi)**:
 
@@ -217,7 +235,10 @@ Berikut adalah hasil perbandingan otomatis antara **Kontrak Versi 1 (Asli)** dan
 #### **3. Kesimpulan & Rekomendasi Hukum (Legal Insight)**
 *   **Tingkat Risiko Perubahan:** 🟡 **Medium Risk**
 *   **Rekomendasi:** Kenaikan harga sewa menguntungkan perusahaan pengelola, namun klausul pergeseran biaya pemeliharaan AC senilai Rp 2.500.000 ke Tenant sangat baik untuk mengurangi biaya operasional gedung. Disarankan menyetujui draf revisi ini.`;
-    return res.json({ comparison: mockReport, isMock: true });
+  };
+
+  if (isMockMode()) {
+    return res.json({ comparison: getMockComparison(), isMock: true });
   }
 
   try {
@@ -244,8 +265,11 @@ ${contractB}`;
 
     res.json({ comparison: response.text || "Gagal membandingkan kontrak.", isMock: false });
   } catch (error: any) {
-    console.error("Contract Comparison Error:", error);
-    res.status(500).json({ error: "Gagal membandingkan kontrak: " + error.message });
+    console.error("Gemini Contract Comparison Error, falling back to Sandbox mode:", error);
+    res.json({
+      comparison: getMockComparison() + "\n\n---\n*💡 **Catatan Sandbox:** Kunci API Gemini tidak valid atau kuota habis. Laporan perbandingan di atas dihasilkan otomatis oleh Mesin Simulasi Cerdas TPMS Sandbox.*",
+      isMock: true
+    });
   }
 });
 
@@ -264,8 +288,7 @@ app.post("/api/gemini/assistant-chat", async (req, res) => {
     payments: dataContext?.payments?.map((p: any) => ({ tenant: p.tenantName, building: p.buildingName, amount: p.amount, status: p.status, dueDate: p.dueDate }))
   });
 
-  if (isMockMode()) {
-    // Generate intelligent responses without key
+  const getMockChat = () => {
     const msg = message.toLowerCase();
     let reply = "";
 
@@ -349,7 +372,11 @@ Saya dapat membantu Anda mengelola dan menanyakan seluruh operasional 4 gedung A
 Silakan ketikkan pertanyaan operasional Anda di bawah!`;
     }
 
-    return res.json({ reply, isMock: true });
+    return reply;
+  };
+
+  if (isMockMode()) {
+    return res.json({ reply: getMockChat(), isMock: true });
   }
 
   try {
@@ -376,8 +403,11 @@ User Query: "${message}"`;
 
     res.json({ reply: response.text || "Gagal memproses pesan AI Assistant.", isMock: false });
   } catch (error: any) {
-    console.error("AI Assistant Chat Error:", error);
-    res.status(500).json({ error: "Gagal memproses obrolan AI Assistant: " + error.message });
+    console.error("Gemini AI Assistant Chat Error, falling back to Sandbox mode:", error);
+    res.json({
+      reply: getMockChat() + "\n\n---\n*💡 **Catatan Sandbox:** Kunci API Gemini tidak valid atau kuota habis. Tanggapan di atas dihasilkan otomatis oleh Mesin Simulasi Cerdas TPMS Sandbox.*",
+      isMock: true
+    });
   }
 });
 
