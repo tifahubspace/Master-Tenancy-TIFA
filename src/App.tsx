@@ -690,6 +690,8 @@ export default function App() {
                 buildings={buildings}
                 tenants={tenants}
                 units={units}
+                documents={documents}
+                stats={stats}
                 onRefresh={handleRefreshAll}
               />
             )}

@@ -71,6 +71,7 @@ export interface Lease {
   status: LeaseStatus;
   approvalStage: ApprovalStage;
   googleDriveUrl?: string;
+  agentName?: string;
   createdAt: string;
   createdBy: string;
 }

@@ -12,7 +12,8 @@ import {
   FileMinus, 
   Loader2,
   Trash2,
-  ChevronRight
+  ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
 import { addDocument, deleteDocument } from '../lib/db';
 import { Lease, Building as BuildingType } from '../types';
@@ -175,6 +176,23 @@ export default function LeasesPanel({ leases, buildings, onRefresh }: LeasesPane
     return matchesSearch && lease.status === statusFilter;
   });
 
+  const getDaysRemaining = (endDateStr: string) => {
+    if (!endDateStr) return null;
+    const end = new Date(endDateStr);
+    const now = new Date();
+    end.setHours(0, 0, 0, 0);
+    now.setHours(0, 0, 0, 0);
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const nearExpiryLeases = leases.filter(l => {
+    if (l.status !== 'active') return false;
+    const days = getDaysRemaining(l.endDate);
+    return days !== null && days <= 180;
+  });
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -300,6 +318,42 @@ export default function LeasesPanel({ leases, buildings, onRefresh }: LeasesPane
             </select>
           </div>
 
+          {/* Near Due Date / Expiry Alert Box */}
+          {nearExpiryLeases.length > 0 && (
+            <div className="bg-amber-950/40 border border-amber-900/60 p-4 rounded-xl space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-400">
+                <AlertTriangle className="w-4.5 h-4.5" />
+                <h4 className="font-sans font-bold text-xs uppercase tracking-wider">
+                  Notifikasi Kontrak Menjelang Jatuh Tempo / Expiry
+                </h4>
+              </div>
+              <p className="font-sans text-[11px] text-slate-300">
+                Sistem mendeteksi {nearExpiryLeases.length} kontrak aktif yang mendekati batas waktu perjanjian sewa (di bawah 180 hari). Harap tindaklanjuti proses perpanjangan masa sewa atau rekonsiliasi deposit.
+              </p>
+              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 scrollbar-thin">
+                {nearExpiryLeases.map(l => {
+                  const days = getDaysRemaining(l.endDate);
+                  const isPastDue = days !== null && days < 0;
+                  return (
+                    <div key={l.id} className="bg-slate-950/60 border border-slate-850 p-2.5 rounded-lg flex justify-between items-center text-xs">
+                      <div className="min-w-0 pr-2">
+                        <span className="font-sans font-bold text-slate-200">{l.tenantName}</span>
+                        <span className="text-slate-500 text-[10px] ml-2">({l.buildingName}, Unit {l.unitNumber})</span>
+                      </div>
+                      <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border shrink-0 ${
+                        isPastDue 
+                          ? "bg-rose-950/80 text-rose-400 border-rose-900/60" 
+                          : "bg-amber-950/80 text-amber-400 border-amber-900/60"
+                      }`}>
+                        {isPastDue ? `Kedaluwarsa ${Math.abs(days || 0)} Hari Lalu` : `Sisa ${days} Hari (Due: ${l.endDate})`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Lease Cards */}
           <div className="space-y-3">
             {filteredLeases.length === 0 ? (
@@ -352,6 +406,28 @@ export default function LeasesPanel({ leases, buildings, onRefresh }: LeasesPane
                           Sewa: Rp {l.monthlyRent?.toLocaleString("id-ID")}/bln
                         </span>
                       </div>
+
+                      {(() => {
+                        const days = getDaysRemaining(l.endDate);
+                        if (days !== null) {
+                          if (days < 0 && l.status === "active") {
+                            return (
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-400 bg-rose-950/40 border border-rose-900/40 px-2.5 py-0.5 rounded-lg mt-2.5 w-fit">
+                                <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
+                                <span>Kedaluwarsa ({Math.abs(days)} hari lalu)</span>
+                              </div>
+                            );
+                          } else if (days >= 0 && days <= 180 && l.status === "active") {
+                            return (
+                              <div className="flex items-center gap-1.5 text-[10px] font-bold text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2.5 py-0.5 rounded-lg mt-2.5 w-fit">
+                                <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 animate-pulse" />
+                                <span>Menjelang Expiry (Sisa {days} Hari)</span>
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">

@@ -10,7 +10,54 @@ import {
   getDocsFromServer,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
+
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 import { 
   Building, 
   Floor, 
@@ -158,7 +205,7 @@ export function subscribeToCollection<T>(collectionName: CollectionName, callbac
       });
       callback(list);
     }, (err) => {
-      console.error(`Firebase error subscribing to ${collectionName}:`, err);
+      handleFirestoreError(err, OperationType.LIST, collectionName);
     });
   } else {
     // Sandbox Observer
@@ -194,10 +241,13 @@ export async function addDocument(collectionName: CollectionName, data: any): Pr
   if (mode === "firebase") {
     try {
       await addDoc(collection(db, collectionName), data);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, collectionName);
+    }
+    try {
       await addDoc(collection(db, "auditLogs"), logEntry);
     } catch (error) {
-      console.error(`Firebase write error on collection ${collectionName}:`, error);
-      throw error;
+      handleFirestoreError(error, OperationType.CREATE, "auditLogs");
     }
   } else {
     const item = { ...data };
@@ -233,10 +283,13 @@ export async function updateDocument(collectionName: CollectionName, id: string,
   if (mode === "firebase") {
     try {
       await setDoc(doc(db, collectionName, id), data, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${id}`);
+    }
+    try {
       await addDoc(collection(db, "auditLogs"), logEntry);
     } catch (error) {
-      console.error(`Firebase update error on ${collectionName}:`, error);
-      throw error;
+      handleFirestoreError(error, OperationType.CREATE, "auditLogs");
     }
   } else {
     localData[collectionName] = (localData[collectionName] as any[]).map(item => 
@@ -270,10 +323,13 @@ export async function deleteDocument(collectionName: CollectionName, id: string)
   if (mode === "firebase") {
     try {
       await deleteDoc(doc(db, collectionName, id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `${collectionName}/${id}`);
+    }
+    try {
       await addDoc(collection(db, "auditLogs"), logEntry);
     } catch (error) {
-      console.error(`Firebase delete error on ${collectionName}:`, error);
-      throw error;
+      handleFirestoreError(error, OperationType.CREATE, "auditLogs");
     }
   } else {
     localData[collectionName] = (localData[collectionName] as any[]).filter(item => item.id !== id);
@@ -408,7 +464,6 @@ export async function seedFirestoreIfEmpty() {
       }
     }
   } catch (error) {
-    console.error("Firestore seeding failed or timed out:", error);
-    throw error;
+    handleFirestoreError(error, OperationType.GET, "buildings");
   }
 }

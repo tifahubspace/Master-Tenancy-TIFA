@@ -1,57 +1,111 @@
 {
   "entities": {
-    "property": {
-      "title": "Property",
-      "description": "A building or unit managed in the tenancy system",
+    "building": {
+      "title": "Building",
+      "description": "A master building within the property portfolio",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "address": { "type": "string" },
+        "totalFloors": { "type": "integer" },
+        "totalUnits": { "type": "integer" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "address", "totalFloors", "totalUnits", "createdBy", "createdAt"]
+    },
+    "floor": {
+      "title": "Floor",
+      "description": "A floor inside a building",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "buildingId": { "type": "string" },
+        "buildingName": { "type": "string" },
+        "floorNumber": { "type": "string" },
         "totalUnits": { "type": "integer" },
         "createdBy": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["id", "name", "address", "totalUnits", "createdBy", "createdAt"]
+      "required": ["id", "buildingId", "buildingName", "floorNumber", "totalUnits", "createdBy", "createdAt"]
+    },
+    "unit": {
+      "title": "Unit",
+      "description": "An individual rentable commercial unit on a floor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "buildingId": { "type": "string" },
+        "buildingName": { "type": "string" },
+        "floorId": { "type": "string" },
+        "floorNumber": { "type": "string" },
+        "unitNumber": { "type": "string" },
+        "areaSqm": { "type": "number" },
+        "rentPerSqm": { "type": "number" },
+        "status": { "type": "string", "enum": ["empty", "leased", "maintenance"] },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "buildingId", "buildingName", "floorId", "floorNumber", "unitNumber", "areaSqm", "rentPerSqm", "status", "createdBy", "createdAt"]
+    },
+    "tenant": {
+      "title": "Tenant",
+      "description": "A registered tenant profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "companyName": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "sector": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "companyName", "contactPerson", "email", "phone", "sector", "createdBy", "createdAt"]
     },
     "lease": {
       "title": "Lease Agreement",
-      "description": "A lease agreement between a tenant and the building management",
+      "description": "A lease contract between a tenant and building management",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "tenantId": { "type": "string" },
         "tenantName": { "type": "string" },
-        "tenantEmail": { "type": "string" },
-        "propertyId": { "type": "string" },
-        "propertyName": { "type": "string" },
+        "buildingId": { "type": "string" },
+        "buildingName": { "type": "string" },
+        "unitId": { "type": "string" },
         "unitNumber": { "type": "string" },
+        "floorNumber": { "type": "string" },
         "startDate": { "type": "string", "format": "date" },
         "endDate": { "type": "string", "format": "date" },
         "monthlyRent": { "type": "number" },
         "securityDeposit": { "type": "number" },
         "billingDay": { "type": "integer" },
-        "status": { "type": "string", "enum": ["active", "expired", "terminated"] },
-        "complianceStatus": { "type": "string", "enum": ["compliant", "non_compliant", "pending_review"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "status": { "type": "string", "enum": ["draft", "awaiting_approval", "active", "expired", "terminated"] },
+        "approvalStage": { "type": "string", "enum": ["legal", "finance", "completed"] },
+        "googleDriveUrl": { "type": "string" },
+        "agentName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
       },
-      "required": [
-        "id", "tenantId", "tenantName", "tenantEmail", "propertyId", "propertyName",
-        "unitNumber", "startDate", "endDate", "monthlyRent", "securityDeposit", "billingDay",
-        "status", "complianceStatus", "createdAt"
-      ]
+      "required": ["id", "tenantId", "tenantName", "buildingId", "buildingName", "unitId", "unitNumber", "floorNumber", "startDate", "endDate", "monthlyRent", "securityDeposit", "billingDay", "status", "approvalStage", "createdAt", "createdBy"]
     },
     "payment": {
       "title": "Rental Payment",
-      "description": "A rental payment record tracking transaction status",
+      "description": "A financial transaction representing a lease payment",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "leaseId": { "type": "string" },
         "tenantId": { "type": "string" },
         "tenantName": { "type": "string" },
-        "propertyId": { "type": "string" },
-        "propertyName": { "type": "string" },
+        "buildingId": { "type": "string" },
+        "buildingName": { "type": "string" },
         "unitNumber": { "type": "string" },
         "amount": { "type": "number" },
         "dueDate": { "type": "string", "format": "date" },
@@ -61,54 +115,114 @@
         "notes": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "id", "leaseId", "tenantId", "tenantName", "propertyId", "propertyName", "unitNumber",
-        "amount", "dueDate", "status", "createdAt"
-      ]
+      "required": ["id", "leaseId", "tenantId", "tenantName", "buildingId", "buildingName", "unitNumber", "amount", "dueDate", "status", "createdAt"]
     },
-    "compliance": {
-      "title": "Tenant Compliance Record",
-      "description": "Tracks tenant compliance issues, reports, and resolution states",
+    "document": {
+      "title": "Document",
+      "description": "A system or uploaded document hosted on Google Drive",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "size": { "type": "string" },
+        "googleDriveUrl": { "type": "string" },
+        "buildingId": { "type": "string" },
+        "buildingName": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "leaseId": { "type": "string" },
+        "uploadedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "type", "size", "googleDriveUrl", "uploadedAt"]
+    },
+    "auditLog": {
+      "title": "Audit Log",
+      "description": "A system event tracked for audit logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "user": { "type": "string" },
+        "module": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "action", "user", "module", "timestamp", "details"]
+    },
+    "approvalWorkflow": {
+      "title": "Approval Workflow",
+      "description": "A multi-stage approval workflow for lease registration",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "leaseId": { "type": "string" },
-        "tenantId": { "type": "string" },
         "tenantName": { "type": "string" },
-        "propertyId": { "type": "string" },
-        "propertyName": { "type": "string" },
+        "buildingName": { "type": "string" },
         "unitNumber": { "type": "string" },
-        "category": { "type": "string", "enum": ["noise", "maintenance", "pets", "unauthorized_guests", "late_payment", "other"] },
-        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
-        "status": { "type": "string", "enum": ["resolved", "warning_issued", "under_review", "escalated"] },
-        "details": { "type": "string" },
-        "reportedBy": { "type": "string" },
-        "dateReported": { "type": "string", "format": "date" },
-        "resolvedDate": { "type": "string", "format": "date" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "requestedBy": { "type": "string" },
+        "requestedAt": { "type": "string", "format": "date-time" },
+        "stage": { "type": "string", "enum": ["legal", "finance"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "comments": { "type": "string" }
       },
-      "required": [
-        "id", "leaseId", "tenantId", "tenantName", "propertyId", "propertyName", "unitNumber",
-        "category", "severity", "status", "details", "reportedBy", "dateReported", "createdAt"
-      ]
+      "required": ["id", "leaseId", "tenantName", "buildingName", "unitNumber", "requestedBy", "requestedAt", "stage", "status"]
+    },
+    "notification": {
+      "title": "Notification",
+      "description": "A system or event notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "read": { "type": "boolean" },
+        "type": { "type": "string", "enum": ["expiry", "payment", "approval", "system"] }
+      },
+      "required": ["id", "title", "message", "date", "read", "type"]
     }
   },
   "firestore": {
-    "properties": {
-      "schema": "property",
-      "description": "Collection of properties managed in the building software"
+    "buildings": {
+      "schema": "building",
+      "description": "Collection of master buildings"
+    },
+    "floors": {
+      "schema": "floor",
+      "description": "Collection of floors inside buildings"
+    },
+    "units": {
+      "schema": "unit",
+      "description": "Collection of rentable commercial units"
+    },
+    "tenants": {
+      "schema": "tenant",
+      "description": "Collection of tenant profiles"
     },
     "leases": {
       "schema": "lease",
-      "description": "Collection of leases and rental agreements"
+      "description": "Collection of lease contracts and agreements"
     },
     "payments": {
       "schema": "payment",
-      "description": "Collection of payment logs and invoices"
+      "description": "Collection of rental payments and billing logs"
     },
-    "compliance": {
-      "schema": "compliance",
-      "description": "Collection of compliance cases and notices"
+    "documents": {
+      "schema": "document",
+      "description": "Collection of system and uploaded files"
+    },
+    "auditLogs": {
+      "schema": "auditLog",
+      "description": "Collection of action audit trails"
+    },
+    "approvalWorkflows": {
+      "schema": "approvalWorkflow",
+      "description": "Collection of active lease approval processes"
+    },
+    "notifications": {
+      "schema": "notification",
+      "description": "Collection of system-wide notifications"
     }
   }
 }

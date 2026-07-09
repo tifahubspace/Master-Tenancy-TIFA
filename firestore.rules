@@ -1,24 +1,58 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    // Global Safety Net default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    match /properties/{propertyId} {
+    // 1. Buildings Collection
+    match /buildings/{buildingId} {
       allow read, write: if true;
     }
 
+    // 2. Floors Collection
+    match /floors/{floorId} {
+      allow read, write: if true;
+    }
+
+    // 3. Units Collection
+    match /units/{unitId} {
+      allow read, write: if true;
+    }
+
+    // 4. Tenants Collection
+    match /tenants/{tenantId} {
+      allow read, write: if true;
+    }
+
+    // 5. Leases Collection
     match /leases/{leaseId} {
       allow read, write: if true;
     }
 
+    // 6. Payments Collection
     match /payments/{paymentId} {
       allow read, write: if true;
     }
 
-    match /compliance/{complianceId} {
+    // 7. Documents Collection
+    match /documents/{documentId} {
+      allow read, write: if true;
+    }
+
+    // 8. Audit Logs Collection
+    match /auditLogs/{auditLogId} {
+      allow read, write: if true;
+    }
+
+    // 9. Approval Workflows Collection
+    match /approvalWorkflows/{approvalWorkflowId} {
+      allow read, write: if true;
+    }
+
+    // 10. Notifications Collection
+    match /notifications/{notificationId} {
       allow read, write: if true;
     }
   }
